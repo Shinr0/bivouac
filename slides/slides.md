@@ -3,7 +3,7 @@ theme: default
 title: "Platform Engineering - GCP via Crossplane"
 info: |
   ## Platform Engineering
-  Self-service infrastructure sur GCP avec Kubernetes, Crossplane et GitOps.
+  Self-service infrastructure sur GCP avec Kubernetes, Crossplane et ArgoCD.
   
   Par Romain Capelle
 author: Romain Capelle
@@ -17,7 +17,7 @@ mdc: true
 
 # Platform Engineering
 
-Self-service infrastructure sur **GCP** avec Kubernetes, Crossplane et GitOps
+Self-service infrastructure sur **GCP** avec Kubernetes, Crossplane, Github Actions et ArgoCD
 
 <div class="abs-br m-6 text-sm opacity-50">
 Romain Capelle — Veille technologique 2026
@@ -28,14 +28,15 @@ layout: two-cols
 layoutClass: gap-8
 ---
 
-# Le probleme
+# Les problèmes
 
 <v-clicks>
 
-- Charge cognitive importante pour les équipes produits
-- Documentation de module Terraform complexe
-- Temps d'apply important quand le projet grandit
-- Gestion du state compliqué
+- Charge importante pour les équipes produits
+- Délai de mise à disposition long lors d'un démarrage de projet
+- Documentation non centralisée et complexe
+- Cycle de vie des ressources complexes post déploiement
+- Pluralité des outils et des pratiques des Factory
 
 </v-clicks>
 
@@ -61,19 +62,31 @@ layout: center
 # Architecture
 
 ```mermaid
+%%{init: {
+  'flowchart': {
+    'nodeSpacing': 70,
+    'rankSpacing': 90,
+    'curve': 'linear',
+    'htmlLabels': true
+  },
+  'themeVariables': {
+    'fontSize': '24px'
+  },
+  'themeCSS': '.nodeLabel { font-size: 26px !important; font-weight: 700; } .edgeLabel { background: #ffffffcc !important; } .edgeLabel p { font-size: 20px !important; font-weight: 700; } .flowchart-link { stroke-width: 3px !important; }'
+}}%%
 flowchart LR
-    A[Frontend] -->|workflow_dispatch| B[GitHub Actions]
-    B -->|git commit| C[Git Repo]
+    A[Frontend] -->|workflow_<br/>dispatch| B[GitHub<br/>Actions]
+    B -->|git<br/>commit| C[Git Repo]
     C -->|sync| D[ArgoCD]
     D -->|apply| E[Crossplane]
-    E -->|API GCP| F[Compute Engine]
+    E -->|API<br/>GCP| F[Compute<br/>Engine]
     
-    style A fill:#6c63ff,color:#fff,stroke:none
-    style B fill:#333,color:#fff,stroke:none
-    style C fill:#333,color:#fff,stroke:none
-    style D fill:#f59e0b,color:#000,stroke:none
-    style E fill:#10b981,color:#fff,stroke:none
-    style F fill:#4285f4,color:#fff,stroke:none
+    style A fill:#6c63ff,color:#fff,stroke:#4f46e5,stroke-width:2px
+    style B fill:#333,color:#fff,stroke:#111,stroke-width:2px
+    style C fill:#333,color:#fff,stroke:#111,stroke-width:2px
+    style D fill:#f59e0b,color:#111,stroke:#d97706,stroke-width:2px
+    style E fill:#10b981,color:#fff,stroke:#059669,stroke-width:2px
+    style F fill:#4285f4,color:#fff,stroke:#2563eb,stroke-width:2px
 ```
 
 <div class="text-center text-sm mt-4 opacity-60">
@@ -107,13 +120,12 @@ flowchart LR
 
 <div>
 
-### Sans Crossplane
+### Actuellement
 ```
-Dev → Ticket Ops → Console GCP → Clic clic
-        → Terraform → PR → Review → Apply
+Dev → Terraform → PR → Review → Apply
 ```
 
-**Probleme** : processus lent, non standardise
+**Probleme** : processus lent, adoption du module laborieuse et pas de reconciliation auto.
 
 </div>
 
