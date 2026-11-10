@@ -1,0 +1,6 @@
+# Copier en terraform.tfvars (ignoré par git) et compléter.
+project_id         = "my-gcp-project"
+billing_account_id = "000000-000000-000000"
+# region          = "europe-west4"
+# budget_amount   = 50
+# budget_currency = "EUR"

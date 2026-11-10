@@ -1,175 +1,135 @@
-# Platform Engineering - GCP Compute Engine via Crossplane
+# Plateforme IA éphémère sur GCP
 
-Plateforme d'Internal Developer Platform (IDP) permettant de provisionner des VMs GCP Compute Engine en self-service via un portail web, orchestrée par **GitHub Actions** + **ArgoCD** + **Crossplane**.
+Une **plateforme interne de développement (IDP) en self-service, avec de l'IA par-dessus**, qui
+n'existe que le temps d'une démo : `make up` la construit depuis un projet GCP vide, `make down`
+la détruit sans laisser de ressource facturée.
+
+- **LLM-as-a-Service** : une équipe demande un accès LLM par un simple claim Git ; la plateforme
+  provisionne la clé, applique quotas et budgets, mesure les coûts.
+- **Assistant de plateforme** : un agent en langage naturel aide à formuler une demande et
+  **ouvre une pull request** — il ne touche jamais le cluster directement.
+
+> Projet en construction, phase par phase. Spécification complète : [`PLAN.md`](PLAN.md).
 
 ## Architecture
 
 ```
-Frontend (HTML/JS)
-  └─ GitHub API (workflow_dispatch)
-       └─ GitHub Actions (génère le Claim YAML, commit dans le repo)
-            └─ ArgoCD (détecte le changement, sync vers K8s)
-                 └─ Crossplane (reconcile le Claim → crée la VM sur GCP)
+GitHub (gitops/, claims/) ──sync──► Argo CD ──► Kyverno ──► kro ──► ressources par équipe
+                                        │
+GKE Standard zonal (spot)               ├─ Portail FastAPI + HTMX (catalogue, demandes, assistant)
+                                        ├─ LiteLLM ──► Vertex AI (Claude) | KServe + vLLM (GPU L4 spot)
+                                        └─ OpenCost, Prometheus/Grafana
 ```
 
-| Composant | Rôle |
-|-----------|------|
-| **Kind** | Cluster Kubernetes local |
-| **Crossplane** | Contrôleur Kubernetes qui gère les ressources GCP via l'API K8s |
-| **Provider GCP Compute** | Provider Upbound pour Crossplane (Compute Engine) |
-| **ArgoCD** | GitOps — synchronise les Claims du repo vers le cluster |
-| **GitHub Actions** | CI/CD — génère les manifests Crossplane à partir du formulaire |
-| **Frontend** | Portail développeur (HTML/CSS/JS vanilla) |
+Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs/adr/`](docs/adr/README.md)
+
+| Couche | Outil |
+|---|---|
+| IaC | Terraform (compatible OpenTofu), deux couches : socle persistant / plateforme éphémère |
+| Cluster | GKE Standard zonal, nœuds spot, GPU à 0 par défaut |
+| GitOps | Argo CD, app-of-apps |
+| API développeur | kro (ResourceGraphDefinitions) |
+| Politiques | Kyverno (CI + admission) |
+| Portail | FastAPI + HTMX |
+| Gateway LLM | LiteLLM → Vertex AI / KServe + vLLM |
+| FinOps | Budget GCP, OpenCost, budgets LiteLLM |
+
+## Avancement
+
+| Phase | Contenu | État |
+|---|---|---|
+| 1 | Squelette, ADR, Makefile, `infra/bootstrap` | ✅ |
+| 2 | `infra/platform` (VPC, GKE, IAM, WI) + `up` / `down` / `check-orphans` | ⏳ |
+| 3 | Argo CD app-of-apps, Kyverno, ESO, kro, OpenCost | — |
+| 4 | RGD `TeamSpace`, politiques, CI Kyverno | — |
+| 5 | LiteLLM + Vertex, RGD `LLMAccess` | — |
+| 6 | Portail : catalogue, formulaires, PR | — |
+| 7 | Assistant IA | — |
+| 8 | Volet GPU : KServe + vLLM | — |
+| 9 | Chemin local kind, polish | — |
 
 ## Prérequis
 
-- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Helm](https://helm.sh/docs/intro/install/)
-- Un projet GCP avec un compte de service (fichier JSON) ayant le rôle `Compute Admin`
-- Un repo GitHub (public ou privé avec deploy key)
+### Outils
 
-## Quick Start
+| Outil | Version testée |
+|---|---|
+| Terraform (ou OpenTofu) | 1.17 (≥ 1.9 requis) |
+| Google Cloud SDK (`gcloud`) | 590 |
+| GNU Make, Bash | 4.x / 5.x |
 
-### 1. Cloner le repo et configurer les credentials GCP
+`kubectl`, `helm`, la CLI Kyverno et Python seront requis à partir des phases suivantes.
 
-```bash
-git clone https://github.com/Shinr0/platform-project.git
-cd platform-project
+### Actions manuelles (une seule fois)
 
-# Generer les credentials GCP via ADC :
-gcloud auth application-default login
-# Le script utilise par defaut ~/.config/gcloud/application_default_credentials.json
+Ce sont les **seules** opérations hors code (PLAN.md § 10).
 
-# Optionnel : forcer le project ID
-export GCP_PROJECT_ID="your-gcp-project-id"
-```
+1. **Projet GCP avec facturation**, et identifiants locaux :
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   gcloud config set project <PROJECT_ID>
+   ```
+   Le compte doit pouvoir activer des APIs sur le projet et créer un budget sur le compte de
+   facturation (`roles/billing.costsManager` ou administrateur de facturation).
+2. **Activer les modèles Claude dans Vertex AI Model Garden** et accepter les conditions
+   (console GCP › Vertex AI › Model Garden). Non automatisable proprement, par projet.
+3. **Quota GPU L4** en `europe-west4` — uniquement pour le volet auto-hébergé (phase 8).
+   Souvent à zéro sur un projet neuf ; délai de réponse variable.
+4. **Configuration locale** :
+   ```bash
+   cp .env.example .env   # renseigner GCP_PROJECT_ID et GCP_BILLING_ACCOUNT_ID
+   ```
+5. **Socle persistant** :
+   ```bash
+   make bootstrap
+   ```
+   Crée : activation des APIs, bucket de state `<PROJECT_ID>-tfstate` (versionné), secret vide
+   `github-token`, budget mensuel (50 € par défaut, alertes à 50 / 90 / 100 %). Le state de cette
+   couche reste local — voir [ADR 0003](docs/adr/0003-bootstrap-local-state.md).
+6. **Token GitHub** : créer un token *fine-grained* limité à ce dépôt (permissions
+   *Contents* et *Pull requests* en lecture/écriture), puis l'ajouter au secret sans qu'il
+   passe par l'historique du shell :
+   ```bash
+   read -rs TOKEN && printf '%s' "$TOKEN" | \
+     gcloud secrets versions add github-token --data-file=- && unset TOKEN
+   ```
 
-### 2. Lancer le setup complet
-
-```bash
-./scripts/setup.sh
-```
-
-Ce script va :
-1. Créer un cluster Kind `platform-eng`
-2. Installer Crossplane + le provider GCP Compute
-3. Configurer les credentials GCP dans Crossplane
-4. Appliquer la XRD et la Composition (API custom `VirtualMachine`)
-5. Installer ArgoCD
-6. Déployer l'Application ArgoCD qui surveille `crossplane/claims/`
-
-### 3. Configurer ArgoCD
-
-```bash
-# Accéder à l'UI ArgoCD
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:80
-
-# Récupérer le mot de passe admin
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-```
-
-Ouvrir http://localhost:8080 et se connecter avec `admin` / `<mot de passe>`.
-
-**Important** : mettre à jour l'URL du repo dans `argocd/application-claims.yaml` avant d'appliquer.
-
-### 4. Ouvrir le portail développeur
+## Utilisation
 
 ```bash
-# Ouvrir directement dans le navigateur
-open frontend/index.html
-# ou
-python3 -m http.server 3000 -d frontend
+make help        # liste des cibles
+make test        # contrôles statiques (terraform fmt/validate, puis lint, kyverno, pytest)
+make bootstrap   # socle persistant, idempotent
+make up          # plateforme éphémère          (phase 2)
+make down        # destruction + check-orphans  (phase 2)
 ```
 
-Au premier lancement, configurer dans **Settings** :
-- **GitHub Token** : un PAT avec les scopes `repo` et `workflow`
-- **Repository** : `owner/platform-engineering`
+## Coûts
 
-### 5. Créer une VM
+| Élément | Ordre de grandeur |
+|---|---|
+| Socle (bucket, secret, budget) | ≈ 0 € / mois |
+| Nœud e2-standard-4 spot (europe-west4) | ≈ 0,056 $/h |
+| Nœud g2-standard-4 + L4 spot | ≈ 0,37 $/h, seulement si `make gpu-on` |
+| Frais de gestion GKE (cluster zonal) | 0,10 $/h, couverts par le crédit gratuit GKE |
+| Démo de 2 h avec GPU | quelques dollars |
 
-Remplir le formulaire et cliquer sur **Create VM**. Le flow :
-1. Le frontend trigger le workflow GitHub Actions `create-vm.yml`
-2. GitHub Actions génère un fichier `crossplane/claims/<vm-name>.yaml` et le commit
-3. ArgoCD détecte le nouveau fichier et l'applique sur le cluster
-4. Crossplane crée la VM sur GCP
+Prix relevés en novembre 2026, à revérifier dans le calculateur GCP. Garde-fous : budget GCP,
+nœuds spot, GPU à 0, budgets LiteLLM, interdiction des PVC/LoadBalancer, contrôle d'orphelins
+après chaque `down` ([ADR 0015](docs/adr/0015-finops-guardrails.md)).
 
-## Structure du projet
+## Structure du dépôt
 
 ```
-.github/workflows/
-  create-vm.yml          # Workflow de création de VM
-  delete-vm.yml          # Workflow de suppression de VM
-crossplane/
-  provider/
-    provider-gcp-compute.yaml  # Installation du provider Upbound
-    provider-config.yaml       # Configuration credentials GCP
-  compositions/
-    xrd-vm.yaml               # API custom (CompositeResourceDefinition)
-    composition-vm.yaml        # Mapping vers GCP Compute Instance
-  claims/                      # Répertoire GitOps (watched by ArgoCD)
-argocd/
-  application-claims.yaml      # Application ArgoCD
-frontend/
-  index.html                   # Portail développeur
-scripts/
-  setup.sh                     # Script de setup complet
+├── PLAN.md               spécification et phases
+├── CLAUDE.md             conventions pour Claude Code
+├── Makefile
+├── docs/                 architecture, ADR
+├── infra/bootstrap/      socle persistant (Terraform, state local)
+├── scripts/              scripts appelés par le Makefile
+└── .github/workflows/    CI
 ```
 
-## API Custom Crossplane
-
-La XRD expose une ressource `VirtualMachine` avec les paramètres suivants :
-
-| Paramètre | Type | Défaut | Description |
-|-----------|------|--------|-------------|
-| `vmName` | string | *requis* | Nom de l'instance Compute Engine |
-| `machineType` | string | `e2-micro` | Type de machine GCP |
-| `zone` | string | `europe-west1-b` | Zone GCP |
-| `diskSizeGb` | integer | `20` | Taille du disque de boot en GB |
-| `imageFamily` | string | `debian-12` | Famille d'image OS |
-
-Exemple de Claim :
-
-```yaml
-apiVersion: compute.platform.local/v1alpha1
-kind: VirtualMachine
-metadata:
-  name: my-dev-server
-  namespace: default
-spec:
-  parameters:
-    vmName: my-dev-server
-    machineType: e2-small
-    zone: europe-west1-b
-    diskSizeGb: 30
-    imageFamily: debian-12
-```
-
-## Commandes utiles
-
-```bash
-# Vérifier l'état de Crossplane
-kubectl get providers
-kubectl get providerconfigs
-
-# Vérifier les compositions
-kubectl get xrd
-kubectl get compositions
-
-# Voir les VMs gérées par Crossplane
-kubectl get virtualmachines
-kubectl get instance.compute.gcp.upbound.io
-
-# Voir les syncs ArgoCD
-kubectl get applications -n argocd
-
-# Logs Crossplane
-kubectl logs -n crossplane-system -l app=crossplane
-```
-
-## Dépannage
-
-- **Provider pas Healthy** : vérifier les credentials GCP (`kubectl describe provider upbound-provider-gcp-compute`)
-- **ArgoCD ne sync pas** : vérifier l'URL du repo et les credentials dans ArgoCD
-- **VM pas créée sur GCP** : vérifier les logs du provider (`kubectl logs -n crossplane-system -l pkg.crossplane.io/revision`)
-- **Erreur 403 sur GitHub API** : vérifier que le PAT a les scopes `repo` et `workflow`
+La structure cible complète est décrite dans PLAN.md § 14. L'ancienne version de ce dépôt
+(Crossplane + portail React) est conservée dans la branche `archive/v1-crossplane-forge`.

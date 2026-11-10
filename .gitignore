@@ -1,9 +1,30 @@
-*.json
-!package.json
-*.pem
-*.key
+# Secrets et configuration locale
 .env
 .env.*
+!.env.example
+*.pem
+*.key
+*-key.json
+credentials*.json
 kubeconfig
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+*.tfplan
+# .terraform.lock.hcl est commité (versions de providers épinglées)
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Divers
 .DS_Store
-node_modules
+.idea/
+.vscode/
