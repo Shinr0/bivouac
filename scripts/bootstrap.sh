@@ -3,7 +3,7 @@
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
-require_cmd terraform gcloud
+require_cmd terraform gcloud curl python3
 require_env GCP_PROJECT_ID GCP_BILLING_ACCOUNT_ID
 require_gcloud_auth
 

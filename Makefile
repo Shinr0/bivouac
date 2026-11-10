@@ -7,14 +7,26 @@ SHELL := /usr/bin/env bash
 -include .env
 export
 
+# Configuration gcloud isolée pour ce projet : n'utilise jamais le compte gcloud
+# global de la machine (souvent celui d'un client). ADC incluses.
+CLOUDSDK_CONFIG ?= $(HOME)/.config/gcloud-platform-ai-demo
+GOOGLE_APPLICATION_CREDENTIALS ?= $(CLOUDSDK_CONFIG)/application_default_credentials.json
+export CLOUDSDK_CONFIG GOOGLE_APPLICATION_CREDENTIALS
+
 TF_DIRS := infra/bootstrap
 
-.PHONY: help bootstrap up demo gpu-on gpu-off down check-orphans local-up test \
+.PHONY: help gcloud-login whoami bootstrap up demo gpu-on gpu-off down check-orphans local-up test \
         test-terraform
 
 help: ## Affiche cette aide
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+gcloud-login: ## Connexion du compte perso dans la config gcloud isolée (interactif)
+	@scripts/gcloud-login.sh
+
+whoami: ## Vérifie le compte et le projet GCP utilisés par le projet
+	@scripts/whoami.sh
 
 bootstrap: ## Socle persistant (une seule fois) : APIs, bucket de state, secret, budget
 	@scripts/bootstrap.sh

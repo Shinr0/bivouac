@@ -4,6 +4,9 @@
 - Épingler toutes les versions (providers, charts, images). Jamais de `latest`.
 - Aucun secret, clé JSON ou token dans le dépôt. Workload Identity uniquement.
 - Aucun PVC, LoadBalancer ou IP statique sans ADR justifiant le nettoyage au destroy.
+- GCP : uniquement le compte perso `GCP_ACCOUNT` via la config gcloud isolée du Makefile
+  (`CLOUDSDK_CONFIG`). Le compte gcloud global de la machine est celui d'un client : ne jamais
+  lancer `gcloud`/`terraform` hors `make` ou sans exporter `CLOUDSDK_CONFIG` et `GOOGLE_APPLICATION_CREDENTIALS`.
 - Toute ressource GCP porte le label env=platform-ai-demo.
 - Ne jamais exécuter `make up`, `terraform apply` ou `destroy` sans demande explicite de l'utilisateur.
 - Après chaque phase : `make test` vert, README à jour, commit.

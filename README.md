@@ -64,12 +64,15 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 
 Ce sont les **seules** opérations hors code (PLAN.md § 10).
 
-1. **Projet GCP avec facturation**, et identifiants locaux :
+1. **Projet GCP avec facturation et identifiants isolés.** Le projet utilise sa propre
+   configuration gcloud (`~/.config/gcloud-platform-ai-demo`, ADC comprises) : la configuration
+   gcloud globale de la machine n'est jamais lue ni modifiée. Renseigner `GCP_ACCOUNT` et
+   `GCP_PROJECT_ID` dans `.env` (étape 4), puis :
    ```bash
-   gcloud auth login
-   gcloud auth application-default login
-   gcloud config set project <PROJECT_ID>
+   make gcloud-login   # ouvre le navigateur : connexion CLI + ADC sur GCP_ACCOUNT
+   make whoami         # vérifie compte (CLI et ADC) et projet
    ```
+   Tous les scripts refusent de s'exécuter si le compte actif n'est pas `GCP_ACCOUNT`.
    Le compte doit pouvoir activer des APIs sur le projet et créer un budget sur le compte de
    facturation (`roles/billing.costsManager` ou administrateur de facturation).
 2. **Activer les modèles Claude dans Vertex AI Model Garden** et accepter les conditions
@@ -78,7 +81,7 @@ Ce sont les **seules** opérations hors code (PLAN.md § 10).
    Souvent à zéro sur un projet neuf ; délai de réponse variable.
 4. **Configuration locale** :
    ```bash
-   cp .env.example .env   # renseigner GCP_PROJECT_ID et GCP_BILLING_ACCOUNT_ID
+   cp .env.example .env   # GCP_ACCOUNT, GCP_PROJECT_ID, GCP_BILLING_ACCOUNT_ID
    ```
 5. **Socle persistant** :
    ```bash
@@ -91,6 +94,7 @@ Ce sont les **seules** opérations hors code (PLAN.md § 10).
    *Contents* et *Pull requests* en lecture/écriture), puis l'ajouter au secret sans qu'il
    passe par l'historique du shell :
    ```bash
+   export CLOUDSDK_CONFIG=~/.config/gcloud-platform-ai-demo   # config isolée
    read -rs TOKEN && printf '%s' "$TOKEN" | \
      gcloud secrets versions add github-token --data-file=- && unset TOKEN
    ```
@@ -99,6 +103,7 @@ Ce sont les **seules** opérations hors code (PLAN.md § 10).
 
 ```bash
 make help        # liste des cibles
+make whoami      # compte et projet GCP utilisés
 make test        # contrôles statiques (terraform fmt/validate, puis lint, kyverno, pytest)
 make bootstrap   # socle persistant, idempotent
 make up          # plateforme éphémère          (phase 2)
