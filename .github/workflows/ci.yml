@@ -1,0 +1,72 @@
+# CI de validation du code. Le provisionnement, lui, ne passe plus par la CI :
+# il est porté par le BFF et Crossplane.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  bff:
+    name: BFF (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bff
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: bff/go.mod
+          cache-dependency-path: bff/go.sum
+
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build ./...
+
+  frontend:
+    name: Frontend (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  manifests:
+    name: Manifests plateforme
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Valider la syntaxe YAML
+        run: |
+          python3 - <<'PY'
+          import glob, sys, yaml
+
+          failures = []
+          for path in sorted(glob.glob("platform/**/*.yaml", recursive=True)):
+              try:
+                  list(yaml.safe_load_all(open(path)))
+              except yaml.YAMLError as err:
+                  failures.append(f"{path}: {err}")
+
+          for failure in failures:
+              print(failure)
+          sys.exit(1 if failures else 0)
+          PY

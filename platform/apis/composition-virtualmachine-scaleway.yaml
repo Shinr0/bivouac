@@ -1,0 +1,149 @@
+# Implémentation Scaleway de l'API VirtualMachine.
+#
+# Les ressources managées utilisent le groupe namespacé `*.scaleway.m.upbound.io`
+# introduit par Crossplane v2 : elles sont créées dans le namespace de l'XR.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: virtualmachine-scaleway
+  labels:
+    provider: scaleway
+spec:
+  compositeTypeRef:
+    apiVersion: compute.platform.local/v1alpha1
+    kind: VirtualMachine
+
+  mode: Pipeline
+  pipeline:
+    - step: render-scaleway-resources
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- $xr := .observed.composite.resource }}
+            {{- $params := $xr.spec.parameters }}
+            {{- $vmName := $params.vmName }}
+            {{- $zone := $params.zone | default "fr-par-1" }}
+            {{- $machineType := $params.machineType | default "DEV1-S" }}
+            {{- $imageFamily := $params.imageFamily | default "ubuntu_jammy" }}
+            {{- $diskSizeGb := $params.diskSizeGb | default 20 }}
+            {{- $rootVolumeType := $params.rootVolumeType | default "sbs_volume" }}
+            {{- $dataDiskSizeGb := $params.dataDiskSizeGb | default 0 | int }}
+            {{- $staticIp := $params.staticIp | default false }}
+            {{- $tags := concat (list "forge" "crossplane" (printf "vm:%s" $vmName)) ($params.tags | default list) }}
+            {{- $observed := .observed.resources | default dict }}
+
+            {{- if $staticIp }}
+            ---
+            apiVersion: instance.scaleway.m.upbound.io/v1alpha1
+            kind: IP
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: public-ip
+              labels:
+                forge.platform.local/role: public-ip
+                forge.platform.local/vm: {{ $vmName | quote }}
+            spec:
+              forProvider:
+                type: routed_ipv4
+                zone: {{ $zone | quote }}
+                tags: {{ $tags | toJson }}
+              providerConfigRef:
+                kind: ClusterProviderConfig
+                name: default
+            {{- end }}
+
+            {{- if gt $dataDiskSizeGb 0 }}
+            ---
+            apiVersion: block.scaleway.m.upbound.io/v1alpha1
+            kind: Volume
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: data-volume
+              labels:
+                forge.platform.local/role: data-volume
+                forge.platform.local/vm: {{ $vmName | quote }}
+            spec:
+              forProvider:
+                name: {{ printf "%s-data" $vmName | quote }}
+                sizeInGb: {{ $dataDiskSizeGb }}
+                iops: 5000
+                zone: {{ $zone | quote }}
+                tags: {{ $tags | toJson }}
+              providerConfigRef:
+                kind: ClusterProviderConfig
+                name: default
+            {{- end }}
+
+            {{/*
+              Le champ additionalVolumeIds n'expose pas de selector : on lit l'ID
+              du volume observé. Il reste vide au premier passage, puis le serveur
+              est mis à jour au tour de réconciliation suivant.
+            */}}
+            {{- $dataVolumeId := "" }}
+            {{- if gt $dataDiskSizeGb 0 }}
+            {{- with (get $observed "data-volume") }}
+            {{- $dataVolumeId = dig "status" "atProvider" "id" "" .resource }}
+            {{- end }}
+            {{- end }}
+            ---
+            apiVersion: instance.scaleway.m.upbound.io/v1alpha1
+            kind: Server
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: server
+              labels:
+                forge.platform.local/role: server
+                forge.platform.local/vm: {{ $vmName | quote }}
+            spec:
+              forProvider:
+                name: {{ $vmName | quote }}
+                type: {{ $machineType | quote }}
+                image: {{ $imageFamily | quote }}
+                zone: {{ $zone | quote }}
+                tags: {{ $tags | toJson }}
+                rootVolume:
+                  - sizeInGb: {{ $diskSizeGb }}
+                    volumeType: {{ $rootVolumeType | quote }}
+                    deleteOnTermination: true
+                {{- if $staticIp }}
+                ipIdSelector:
+                  matchControllerRef: true
+                  matchLabels:
+                    forge.platform.local/role: public-ip
+                {{- else }}
+                enableDynamicIp: true
+                {{- end }}
+                {{- if ne $dataVolumeId "" }}
+                additionalVolumeIds:
+                  - {{ $dataVolumeId | quote }}
+                {{- end }}
+              providerConfigRef:
+                kind: ClusterProviderConfig
+                name: default
+
+            {{/* Remonte l'état Scaleway dans le status de l'XR, lu par le BFF. */}}
+            {{- with (get $observed "server") }}
+            {{- $at := dig "status" "atProvider" dict .resource }}
+            {{- $publicIps := dig "publicIps" (list) $at }}
+            {{- $publicIp := "" }}
+            {{- if gt (len $publicIps) 0 }}
+            {{- $publicIp = dig "address" "" (index $publicIps 0) }}
+            {{- end }}
+            ---
+            apiVersion: compute.platform.local/v1alpha1
+            kind: VirtualMachine
+            status:
+              serverId: {{ dig "id" "" $at | quote }}
+              state: {{ dig "state" "" $at | quote }}
+              zone: {{ dig "zone" $zone $at | quote }}
+              publicIp: {{ $publicIp | quote }}
+            {{- end }}
+
+    - step: detect-readiness
+      functionRef:
+        name: function-auto-ready

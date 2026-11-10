@@ -1,5 +1,3 @@
-*.json
-!package.json
 *.pem
 *.key
 .env
@@ -7,3 +5,5 @@
 kubeconfig
 .DS_Store
 node_modules
+frontend/dist
+frontend/node_modules

@@ -1,0 +1,120 @@
+# API self-service exposée aux utilisateurs de Forge.
+#
+# Crossplane v2 : les composites sont namespacés et les claims n'existent plus.
+# L'objet VirtualMachine créé par le BFF dans forge-workloads EST la ressource.
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: virtualmachines.compute.platform.local
+spec:
+  scope: Namespaced
+  group: compute.platform.local
+  names:
+    kind: VirtualMachine
+    plural: virtualmachines
+    singular: virtualmachine
+    shortNames:
+      - vm
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - parameters
+              properties:
+                parameters:
+                  type: object
+                  required:
+                    - vmName
+                  properties:
+                    vmName:
+                      type: string
+                      description: Nom de l'instance Scaleway.
+                      pattern: "^[a-z]([a-z0-9-]{1,61}[a-z0-9])?$"
+                    machineType:
+                      type: string
+                      description: Type commercial Scaleway (DEV1-S, PLAY2-NANO, PRO2-XXS…).
+                      default: DEV1-S
+                    zone:
+                      type: string
+                      description: Zone de disponibilité Scaleway.
+                      default: fr-par-1
+                      enum:
+                        - fr-par-1
+                        - fr-par-2
+                        - nl-ams-1
+                        - nl-ams-2
+                        - pl-waw-1
+                    imageFamily:
+                      type: string
+                      description: Label d'image Scaleway.
+                      default: ubuntu_jammy
+                    diskSizeGb:
+                      type: integer
+                      description: Taille du volume racine en Go.
+                      default: 20
+                      minimum: 10
+                      maximum: 1000
+                    rootVolumeType:
+                      type: string
+                      description: Type du volume racine.
+                      default: sbs_volume
+                      enum:
+                        - sbs_volume
+                        - l_ssd
+                    dataDiskSizeGb:
+                      type: integer
+                      description: Volume de données additionnel en Go (0 = aucun).
+                      default: 0
+                      minimum: 0
+                      maximum: 10000
+                    staticIp:
+                      type: boolean
+                      description: Réserver une IP publique dédiée plutôt qu'une IP dynamique.
+                      default: false
+                    tags:
+                      type: array
+                      description: Tags appliqués aux ressources Scaleway.
+                      default: []
+                      items:
+                        type: string
+            status:
+              type: object
+              properties:
+                serverId:
+                  type: string
+                  description: Identifiant zoné de l'instance Scaleway.
+                publicIp:
+                  type: string
+                  description: Adresse IPv4 publique attribuée.
+                state:
+                  type: string
+                  description: État rapporté par l'API Scaleway.
+                zone:
+                  type: string
+                  description: Zone effective de l'instance.
+      additionalPrinterColumns:
+        - name: TYPE
+          type: string
+          jsonPath: .spec.parameters.machineType
+        - name: ZONE
+          type: string
+          jsonPath: .spec.parameters.zone
+        - name: IP
+          type: string
+          jsonPath: .status.publicIp
+        - name: STATE
+          type: string
+          jsonPath: .status.state
+        - name: READY
+          type: string
+          jsonPath: .status.conditions[?(@.type=='Ready')].status
+        - name: AGE
+          type: date
+          jsonPath: .metadata.creationTimestamp

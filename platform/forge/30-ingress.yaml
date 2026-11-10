@@ -1,0 +1,28 @@
+# Point d'entrée unique : le frontend et son API partagent la même origine,
+# ce qui évite tout CORS en production.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: forge
+  namespace: forge
+  labels:
+    app.kubernetes.io/part-of: forge
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: forge-bff
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: forge-frontend
+                port:
+                  name: http

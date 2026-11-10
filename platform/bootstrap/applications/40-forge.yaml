@@ -1,0 +1,35 @@
+# Wave 3 — portail Forge : BFF (API Kubernetes) et frontend statique.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: forge
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Shinr0/platform-project.git
+    targetRevision: main
+    path: platform/forge
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: forge
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 20s
+        factor: 2
+        maxDuration: 5m

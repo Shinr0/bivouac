@@ -1,0 +1,15 @@
+# Rattache les credentials Scaleway au provider.
+#
+# Le Secret référencé est créé par OpenTofu (crossplane_credentials.tf) car il
+# contient une clé API IAM : il ne doit pas être versionné dans Git.
+apiVersion: scaleway.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      name: crossplane-scaleway-credentials
+      namespace: crossplane-system
+      key: credentials

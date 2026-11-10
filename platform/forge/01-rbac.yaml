@@ -1,0 +1,33 @@
+# Le BFF n'a de droits que sur les composites VirtualMachine, et uniquement
+# dans le namespace des workloads utilisateurs. Il ne peut ni lire les Secrets
+# ni toucher aux ressources managées Scaleway directement.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: forge-bff-virtualmachines
+  namespace: forge-workloads
+  labels:
+    app.kubernetes.io/part-of: forge
+rules:
+  - apiGroups: ["compute.platform.local"]
+    resources: ["virtualmachines"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["compute.platform.local"]
+    resources: ["virtualmachines/status"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: forge-bff-virtualmachines
+  namespace: forge-workloads
+  labels:
+    app.kubernetes.io/part-of: forge
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: forge-bff-virtualmachines
+subjects:
+  - kind: ServiceAccount
+    name: forge-bff
+    namespace: forge

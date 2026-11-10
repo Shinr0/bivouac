@@ -1,0 +1,9 @@
+# Namespace dans lequel le BFF crée les XR VirtualMachine.
+# Les ressources managées Scaleway composées atterrissent dans ce même namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forge-workloads
+  labels:
+    app.kubernetes.io/part-of: forge
+    forge.platform.local/purpose: user-workloads

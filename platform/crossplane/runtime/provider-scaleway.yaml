@@ -1,0 +1,11 @@
+# Provider Scaleway : installe les CRD des ressources managées
+# (instance.scaleway.m.upbound.io, block.scaleway.m.upbound.io, …).
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-scaleway
+spec:
+  package: xpkg.upbound.io/scaleway/provider-scaleway:v0.6.0
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 2

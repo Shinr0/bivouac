@@ -1,175 +1,138 @@
-# Platform Engineering - GCP Compute Engine via Crossplane
+# Platform Engineering — Scaleway via Crossplane
 
-Plateforme d'Internal Developer Platform (IDP) permettant de provisionner des VMs GCP Compute Engine en self-service via un portail web, orchestrée par **GitHub Actions** + **ArgoCD** + **Crossplane**.
+Internal Developer Platform permettant de provisionner des instances Scaleway en
+self-service depuis un portail web, sans passer par Git ni par la CI.
 
 ## Architecture
 
 ```
-Frontend (HTML/JS)
-  └─ GitHub API (workflow_dispatch)
-       └─ GitHub Actions (génère le Claim YAML, commit dans le repo)
-            └─ ArgoCD (détecte le changement, sync vers K8s)
-                 └─ Crossplane (reconcile le Claim → crée la VM sur GCP)
+Forge (React, statique)
+  └─ BFF Go — ServiceAccount Kubernetes
+       └─ API Kubernetes : composite VirtualMachine dans forge-workloads
+            └─ Crossplane v2 + provider-scaleway
+                 └─ Instance, Block Volume, IP publique Scaleway
 ```
+
+En parallèle, ArgoCD synchronise la configuration de la plateforme (Crossplane,
+XRD, Compositions, manifests Forge) depuis `platform/`.
+
+### Trois couches, trois propriétaires
+
+| Couche | Outil | Contenu | Fréquence de changement |
+|---|---|---|---|
+| Infrastructure jour 0 | OpenTofu | VPC, Kapsule, IAM, ArgoCD | rare |
+| Configuration plateforme | ArgoCD / Git | Crossplane, XRD, Compositions, Forge | à chaque évolution du contrat |
+| Ressources utilisateurs | BFF → API Kubernetes | Composites `VirtualMachine` | en continu |
+
+La séparation est délibérée : les demandes utilisateurs ne transitent pas par
+Git. Un commit par VM créerait un couplage entre le rythme des utilisateurs et
+celui de la plateforme, avec des conflits de merge et une latence inutile. Les
+composites vivent dans etcd, où Crossplane les réconcilie ; ArgoCD ne gère que
+ce qui doit être revu et versionné.
+
+## Composants
 
 | Composant | Rôle |
-|-----------|------|
-| **Kind** | Cluster Kubernetes local |
-| **Crossplane** | Contrôleur Kubernetes qui gère les ressources GCP via l'API K8s |
-| **Provider GCP Compute** | Provider Upbound pour Crossplane (Compute Engine) |
-| **ArgoCD** | GitOps — synchronise les Claims du repo vers le cluster |
-| **GitHub Actions** | CI/CD — génère les manifests Crossplane à partir du formulaire |
-| **Frontend** | Portail développeur (HTML/CSS/JS vanilla) |
+|---|---|
+| **Scaleway Kapsule** | Cluster Kubernetes managé, control plane mutualisé gratuit |
+| **Crossplane v2** | Réconcilie les composites vers l'API Scaleway |
+| **provider-scaleway** | Ressources managées Instance, Block, VPC, RDB… |
+| **ArgoCD** | GitOps sur la configuration de la plateforme |
+| **BFF** (`bff/`) | API REST Go, seul détenteur des droits cluster |
+| **Forge** (`frontend/`) | Portail Catalog / Demande / Suivi / Settings |
 
-## Prérequis
+## Structure
 
-- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Helm](https://helm.sh/docs/intro/install/)
-- Un projet GCP avec un compte de service (fichier JSON) ayant le rôle `Compute Admin`
-- Un repo GitHub (public ou privé avec deploy key)
+```
+bff/                      API Go (client dynamique Kubernetes)
+frontend/                 Portail Forge (Vite + React + TypeScript)
+platform/                 Configuration GitOps synchronisée par ArgoCD
+  bootstrap/applications/   Applications ArgoCD (app-of-apps)
+  crossplane/runtime/       Provider Scaleway, functions, ProviderConfig
+  apis/                     XRD VirtualMachine + Composition Scaleway
+  forge/                    Déploiements BFF et frontend, RBAC, Ingress
+specs/                    Spec Kit — spec / plan / tasks
+.specify/                 Constitution et templates Spec Kit
+```
 
-## Quick Start
+Le socle OpenTofu vit dans le dépôt voisin `infra-rcscale-scaleway`.
 
-### 1. Cloner le repo et configurer les credentials GCP
+## Démarrage
+
+### 1. Infrastructure
 
 ```bash
-git clone https://github.com/Shinr0/platform-project.git
-cd platform-project
+cd ../infra-rcscale-scaleway
+export SCW_ACCESS_KEY=... SCW_SECRET_KEY=... SCW_DEFAULT_PROJECT_ID=...
+cp terraform.tfvars.example terraform.tfvars   # renseigner project_id et platform_repo_url
+tofu init && tofu apply
 
-# Generer les credentials GCP via ADC :
-gcloud auth application-default login
-# Le script utilise par defaut ~/.config/gcloud/application_default_credentials.json
-
-# Optionnel : forcer le project ID
-export GCP_PROJECT_ID="your-gcp-project-id"
+tofu output -raw kubeconfig > ~/.kube/forge-platform.yaml
+export KUBECONFIG=~/.kube/forge-platform.yaml
 ```
 
-### 2. Lancer le setup complet
+OpenTofu crée le cluster puis installe ArgoCD et l'Application racine. ArgoCD
+déroule ensuite les waves décrites dans `platform/README.md`.
+
+### 2. Images
 
 ```bash
-./scripts/setup.sh
+cd bff       && docker build -t rg.fr-par.scw.cloud/forge/forge-bff:0.1.0 . && docker push ...
+cd frontend  && docker build -t rg.fr-par.scw.cloud/forge/forge-frontend:0.1.0 . && docker push ...
 ```
 
-Ce script va :
-1. Créer un cluster Kind `platform-eng`
-2. Installer Crossplane + le provider GCP Compute
-3. Configurer les credentials GCP dans Crossplane
-4. Appliquer la XRD et la Composition (API custom `VirtualMachine`)
-5. Installer ArgoCD
-6. Déployer l'Application ArgoCD qui surveille `crossplane/claims/`
-
-### 3. Configurer ArgoCD
+### 3. Développement local
 
 ```bash
-# Accéder à l'UI ArgoCD
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:80
+# API, contre le cluster courant
+cd bff && FORGE_CORS_ORIGINS=http://localhost:5173 go run ./cmd/server
 
-# Récupérer le mot de passe admin
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+# Portail, /api est proxyfié vers le BFF
+cd frontend && npm install && npm run dev
 ```
 
-Ouvrir http://localhost:8080 et se connecter avec `admin` / `<mot de passe>`.
+Sans cluster, basculer **Settings → mode `mock`** : le portail fonctionne
+entièrement en localStorage.
 
-**Important** : mettre à jour l'URL du repo dans `argocd/application-claims.yaml` avant d'appliquer.
+## Contrat self-service
 
-### 4. Ouvrir le portail développeur
-
-```bash
-# Ouvrir directement dans le navigateur
-open frontend/index.html
-# ou
-python3 -m http.server 3000 -d frontend
-```
-
-Au premier lancement, configurer dans **Settings** :
-- **GitHub Token** : un PAT avec les scopes `repo` et `workflow`
-- **Repository** : `owner/platform-engineering`
-
-### 5. Créer une VM
-
-Remplir le formulaire et cliquer sur **Create VM**. Le flow :
-1. Le frontend trigger le workflow GitHub Actions `create-vm.yml`
-2. GitHub Actions génère un fichier `crossplane/claims/<vm-name>.yaml` et le commit
-3. ArgoCD détecte le nouveau fichier et l'applique sur le cluster
-4. Crossplane crée la VM sur GCP
-
-## Structure du projet
-
-```
-.github/workflows/
-  create-vm.yml          # Workflow de création de VM
-  delete-vm.yml          # Workflow de suppression de VM
-crossplane/
-  provider/
-    provider-gcp-compute.yaml  # Installation du provider Upbound
-    provider-config.yaml       # Configuration credentials GCP
-  compositions/
-    xrd-vm.yaml               # API custom (CompositeResourceDefinition)
-    composition-vm.yaml        # Mapping vers GCP Compute Instance
-  claims/                      # Répertoire GitOps (watched by ArgoCD)
-argocd/
-  application-claims.yaml      # Application ArgoCD
-frontend/
-  index.html                   # Portail développeur
-scripts/
-  setup.sh                     # Script de setup complet
-```
-
-## API Custom Crossplane
-
-La XRD expose une ressource `VirtualMachine` avec les paramètres suivants :
+`VirtualMachine` (`compute.platform.local/v1alpha1`), namespacé :
 
 | Paramètre | Type | Défaut | Description |
-|-----------|------|--------|-------------|
-| `vmName` | string | *requis* | Nom de l'instance Compute Engine |
-| `machineType` | string | `e2-micro` | Type de machine GCP |
-| `zone` | string | `europe-west1-b` | Zone GCP |
-| `diskSizeGb` | integer | `20` | Taille du disque de boot en GB |
-| `imageFamily` | string | `debian-12` | Famille d'image OS |
+|---|---|---|---|
+| `vmName` | string | *requis* | Nom de l'instance |
+| `machineType` | string | `DEV1-S` | Type commercial Scaleway |
+| `zone` | string | `fr-par-1` | Zone de disponibilité |
+| `imageFamily` | string | `ubuntu_jammy` | Label d'image |
+| `diskSizeGb` | integer | `20` | Volume racine |
+| `rootVolumeType` | string | `sbs_volume` | `sbs_volume` ou `l_ssd` |
+| `dataDiskSizeGb` | integer | `0` | Volume de données additionnel |
+| `staticIp` | boolean | `false` | IP publique réservée plutôt que dynamique |
 
-Exemple de Claim :
-
-```yaml
-apiVersion: compute.platform.local/v1alpha1
-kind: VirtualMachine
-metadata:
-  name: my-dev-server
-  namespace: default
-spec:
-  parameters:
-    vmName: my-dev-server
-    machineType: e2-small
-    zone: europe-west1-b
-    diskSizeGb: 30
-    imageFamily: debian-12
-```
+Les valeurs acceptées sont servies par `GET /api/v1/catalog` : le formulaire du
+portail se construit à partir de l'API, jamais à partir d'une liste codée en dur.
 
 ## Commandes utiles
 
 ```bash
-# Vérifier l'état de Crossplane
 kubectl get providers
-kubectl get providerconfigs
-
-# Vérifier les compositions
-kubectl get xrd
-kubectl get compositions
-
-# Voir les VMs gérées par Crossplane
-kubectl get virtualmachines
-kubectl get instance.compute.gcp.upbound.io
-
-# Voir les syncs ArgoCD
-kubectl get applications -n argocd
-
-# Logs Crossplane
-kubectl logs -n crossplane-system -l app=crossplane
+kubectl get xrd,compositions
+kubectl -n forge-workloads get virtualmachines
+kubectl -n forge-workloads get servers.instance.scaleway.m.upbound.io
+kubectl -n argocd get applications
+kubectl -n crossplane-system logs -l app=crossplane
 ```
 
 ## Dépannage
 
-- **Provider pas Healthy** : vérifier les credentials GCP (`kubectl describe provider upbound-provider-gcp-compute`)
-- **ArgoCD ne sync pas** : vérifier l'URL du repo et les credentials dans ArgoCD
-- **VM pas créée sur GCP** : vérifier les logs du provider (`kubectl logs -n crossplane-system -l pkg.crossplane.io/revision`)
-- **Erreur 403 sur GitHub API** : vérifier que le PAT a les scopes `repo` et `workflow`
+- **Provider pas `Healthy`** : `kubectl describe provider provider-scaleway`, puis
+  vérifier que le Secret `crossplane-scaleway-credentials` existe bien dans
+  `crossplane-system`.
+- **Composite bloqué en `provisioning`** :
+  `kubectl -n forge-workloads describe virtualmachine <nom>` expose les
+  conditions des ressources composées.
+- **Application ArgoCD `OutOfSync` sur les XRD** : les CRD Crossplane n'étaient
+  pas encore installées au moment du premier passage ; la wave suivante rejoue
+  automatiquement grâce à la politique de retry.
+- **`readyz` du BFF en échec** : la XRD `virtualmachines` n'est pas installée ou
+  le RoleBinding n'a pas été appliqué.
