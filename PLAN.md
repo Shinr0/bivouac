@@ -11,7 +11,7 @@
 > **Révision du 2026-11-15 (bis)** : l'IA **intégrée à la plateforme** (LiteLLM, Vertex AI, RGD `LLMAccess`,
 > assistant du portail) est **reportée** en phases optionnelles 7 et 8
 > ([ADR 0018](docs/adr/0018-defer-in-platform-ai.md)). L'IA intervient d'abord **dans la façon de construire**
-> la plateforme : Claude Code, cartographie Graphify, garde-fous et revues
+> la plateforme : Claude Code, contexte économe, garde-fous et revues
 > ([ADR 0019](docs/adr/0019-ai-assisted-workflow.md), § 16). Les sections qui décrivent l'IA intégrée
 > restent valables pour ces phases optionnelles.
 
@@ -310,7 +310,7 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 | 6 | Chemin local kind, polish README (schéma, GIF de démo), `docs/demo.md` | Un visiteur lance `make local-up` sans compte cloud |
 | 7 *(optionnelle)* | LiteLLM + Vertex (WI, sans clé) + RGD `LLMAccess` | Une équipe obtient une clé et appelle Claude via le gateway ; budget appliqué |
 | 8 *(optionnelle)* | Assistant IA dans le portail (outils, confirmation avant PR) | Scénario de démo bout en bout scripté dans `docs/demo.md` |
-| transverse | Workflow Claude Code : CLAUDE.md, Graphify, garde-fous, revues IA (§ 16) | En place dès la phase 1, revu à chaque phase |
+| transverse | Workflow Claude Code : CLAUDE.md, skills, garde-fous, revues IA (§ 16) | En place dès la phase 1, revu à chaque phase |
 
 ---
 
@@ -376,7 +376,7 @@ le plan et que le coût en tokens reste maîtrisé ([ADR 0019](docs/adr/0019-ai-
 | Dérive de périmètre (anticiper une phase, inventer une version) | Règles `CLAUDE.md`, phases de PLAN.md, ADR par décision | `CLAUDE.md`, `PLAN.md`, `docs/adr/` |
 | Action destructrice ou facturée sans accord | Confirmation obligatoire : `terraform apply/destroy`, `make up/down/bootstrap`, `git push` | `.claude/settings.json` (`permissions.ask`) |
 | Mauvais compte GCP (compte client) | Hook qui bloque `gcloud` hors config isolée + vérification d'identité des scripts | `.claude/hooks/guard-gcloud.sh`, `scripts/lib.sh` |
-| Exploration coûteuse du dépôt | Graphe Graphify (AST local, 0 token) interrogé avant grep/lecture | `.claude/skills/graphify/`, `make graph` |
+| Contexte trop lourd (coût de chaque requête) | `CLAUDE.md` court ; consignes à la demande (skills, `CLAUDE.md` par dossier) ; lectures interdites ; une session par tâche | `CLAUDE.md`, `.claude/skills/`, `permissions.deny` |
 | Régression non vue | `make test` + CI ; revue Claude **locale** (`/code-review`) avant push | `Makefile`, `.github/workflows/ci.yml` |
 | Revue IA trop chère | Revue CI déclenchée à l'ouverture / au label `ai-review`, diff seul, tours plafonnés, Sonnet, auth OIDC sans clé | `.github/workflows/claude-review.yml` |
-| Supply chain des outils | Versions épinglées (SHA d'actions, version PyPI) et délai de 7 jours avant adoption | workflows, `make graph-install` |
+| Supply chain des outils | Versions épinglées (SHA d'actions, version PyPI) et délai de 7 jours avant adoption | workflows |

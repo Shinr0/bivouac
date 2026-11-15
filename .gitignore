@@ -29,5 +29,3 @@ __pycache__/
 .idea/
 .vscode/
 
-# Graphify (carte du dépôt, régénérée par make graph)
-graphify-out/

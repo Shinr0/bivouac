@@ -10,38 +10,6 @@
             "timeout": 10
           }
         ]
-      },
-      {
-        "matcher": "Bash|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "graphify hook-guard search",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "graphify hook-guard read",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "graphify hook-guard compact",
-            "timeout": 10
-          }
-        ]
       }
     ]
   },
@@ -58,6 +26,14 @@
       "Bash(make bootstrap:*)",
       "Bash(git push:*)",
       "Bash(gh pr merge:*)"
+    ],
+    "deny": [
+      "Read(**/.terraform/**)",
+      "Read(**/*.tfstate)",
+      "Read(**/*.tfstate.*)",
+      "Read(**/.terraform.lock.hcl)",
+      "Read(./.env)",
+      "Read(**/*.tfvars)"
     ]
   }
 }

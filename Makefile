@@ -15,11 +15,8 @@ export CLOUDSDK_CONFIG GOOGLE_APPLICATION_CREDENTIALS
 
 TF_DIRS := infra/bootstrap
 
-# Graphify : version épinglée, adoptée après 7 jours (ADR 0019)
-GRAPHIFY_VERSION := 0.9.104
-
 .PHONY: help gcloud-login whoami bootstrap up demo down check-orphans local-up test \
-        test-terraform test-hooks graph graph-install
+        test-terraform test-hooks
 
 help: ## Affiche cette aide
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -54,12 +51,6 @@ test: test-terraform test-hooks ## Tous les contrôles statiques (s'étoffe à c
 test-hooks: ## Vérifie les garde-fous Claude Code (hook gcloud)
 	@scripts/test-hooks.sh
 
-graph-install: ## Installe Graphify (version épinglée) pour Claude Code
-	uv tool install 'graphifyy[terraform]==$(GRAPHIFY_VERSION)'
-
-graph: ## (Re)construit la carte du dépôt pour Claude Code — local, 0 token
-	GRAPHIFY_BACKEND=none graphify extract . --code-only
-	GRAPHIFY_BACKEND=none graphify cluster-only .
 
 test-terraform: ## terraform fmt + validate sur chaque couche
 	terraform fmt -check -recursive infra

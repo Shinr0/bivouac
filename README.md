@@ -5,7 +5,7 @@ démo : `make up` la construit depuis un projet GCP vide, `make down` la détrui
 ressource facturée.
 
 - **Construite avec un agent IA, sous contrôle** : Claude Code itère sur le dépôt, encadré par
-  des règles (`CLAUDE.md`), des garde-fous (permissions, hooks), une carte du dépôt (Graphify)
+  des règles (`CLAUDE.md`), des garde-fous (permissions, hooks), un contexte économe
   et des revues IA à coût borné — voir PLAN.md § 16 et [ADR 0019](docs/adr/0019-ai-assisted-workflow.md).
 - **IA dans la plateforme (phases optionnelles)** : accès LLM par équipe via LiteLLM + Vertex AI,
   assistant qui ouvre des pull requests — reporté ([ADR 0018](docs/adr/0018-defer-in-platform-ai.md)).
@@ -33,7 +33,7 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | Politiques | Kyverno (CI + admission) |
 | Portail | FastAPI + HTMX |
 | Gateway LLM *(optionnel)* | LiteLLM → Vertex AI (Claude), pas de modèle auto-hébergé |
-| Outillage IA | Claude Code, Graphify, revue `claude-code-action` (OIDC, sans clé) |
+| Outillage IA | Claude Code, skills de projet, revue `claude-code-action` (OIDC, sans clé) |
 | FinOps | Budget GCP, OpenCost (+ budgets LiteLLM si phase 7) |
 
 ## Avancement
@@ -48,7 +48,7 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | 6 | Chemin local kind, polish | — |
 | 7 *(opt.)* | LiteLLM + Vertex, RGD `LLMAccess` | reporté |
 | 8 *(opt.)* | Assistant IA dans le portail | reporté |
-| transverse | Workflow Claude Code : Graphify, garde-fous, revues IA | ✅ |
+| transverse | Workflow Claude Code : contexte économe, garde-fous, revues IA | ✅ |
 
 ## Prérequis
 
@@ -120,7 +120,8 @@ garde-fous versionnés (PLAN.md § 16, [ADR 0019](docs/adr/0019-ai-assisted-work
 | `CLAUDE.md`, `PLAN.md` | Règles et phases : l'agent ne travaille que sur la phase en cours |
 | `.claude/settings.json` | Confirmation exigée pour `terraform apply/destroy`, `make up/down/bootstrap`, `git push` |
 | `.claude/hooks/guard-gcloud.sh` | Bloque tout `gcloud` hors de la config isolée du projet (testé par `make test`) |
-| Graphify (`make graph-install`, `make graph`) | Carte du dépôt (AST local, 0 token) consultée avant de relire les fichiers |
+| `.claude/skills/` | Routines chargées à la demande : `new-adr`, `close-phase` |
+| `permissions.deny` | Interdit la lecture de `.terraform/`, states, lock files, `*.tfvars`, `.env` |
 | `/code-review` | Revue locale avant push, sans coût de CI |
 | `.github/workflows/claude-review.yml` | Revue IA des PR, bornée en coût, authentifiée par OIDC (aucune clé) |
 
@@ -153,7 +154,7 @@ après chaque `down` ([ADR 0015](docs/adr/0015-finops-guardrails.md)).
 ├── docs/                 architecture, ADR
 ├── infra/bootstrap/      socle persistant (Terraform, state local)
 ├── scripts/              scripts appelés par le Makefile
-├── .claude/              garde-fous et skill Graphify pour Claude Code
+├── .claude/              garde-fous et skills pour Claude Code
 └── .github/workflows/    CI
 ```
 

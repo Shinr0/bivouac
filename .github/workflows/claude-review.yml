@@ -12,7 +12,6 @@ on:
     types: [opened, ready_for_review, labeled]
     paths-ignore:
       - "content/**"
-      - "graphify-out/**"
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
