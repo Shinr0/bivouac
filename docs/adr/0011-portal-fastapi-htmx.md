@@ -9,7 +9,7 @@ minutes et maintenable par une personne.
 
 ## Décision
 Application Python 3.12+ FastAPI, rendu serveur Jinja2 + HTMX, aucun framework JS lourd.
-Le portail n'est qu'un **client** de l'API de la plateforme (les CRD Crossplane) et de GitHub : il lit le
+Le portail n'est qu'un **client** de l'API de la plateforme (les CRD générées par kro) et de GitHub : il lit le
 cluster (RBAC lecture seule) et n'écrit que des pull requests.
 
 ## Alternatives écartées

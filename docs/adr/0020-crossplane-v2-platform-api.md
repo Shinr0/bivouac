@@ -1,6 +1,6 @@
 # 0020. Crossplane v2 comme API de plateforme, avec des objets cloud
 
-- **Statut** : Accepté — remplace [0009](0009-kro-developer-api.md)
+- **Statut** : Remplacé par [0021](0021-kro-on-config-connector.md) (2026-11-15)
 - **Date** : 2026-11-15
 
 ## Contexte

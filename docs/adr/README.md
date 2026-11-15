@@ -21,6 +21,7 @@
 | [0017](0017-vertex-only-no-gpu.md) | Vertex AI uniquement : ni GPU ni modèle auto-hébergé | Accepté — remplace [0014](0014-kserve-vllm.md) |
 | [0018](0018-defer-in-platform-ai.md) | Reporter l'IA intégrée à la plateforme | Accepté |
 | [0019](0019-ai-assisted-workflow.md) | Développer la plateforme avec Claude Code, sous garde-fous | Accepté |
-| [0020](0020-crossplane-v2-platform-api.md) | Crossplane v2 comme API de plateforme, avec des objets cloud | Accepté — remplace [0009](0009-kro-developer-api.md) |
+| [0020](0020-crossplane-v2-platform-api.md) | Crossplane v2 comme API de plateforme, avec des objets cloud | Remplacé par [0021](0021-kro-on-config-connector.md) (2026-11-15) |
+| [0021](0021-kro-on-config-connector.md) | kro au-dessus de Config Connector comme API de plateforme | Accepté — remplace [0020](0020-crossplane-v2-platform-api.md) |
 
 Nouvelle décision : copier [`0000-template.md`](0000-template.md).

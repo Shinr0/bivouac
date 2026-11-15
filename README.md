@@ -15,7 +15,7 @@ ressource facturée.
 ## Architecture
 
 ```
-GitHub (gitops/, claims/) ──sync──► Argo CD ──► Kyverno ──► Crossplane v2 ──► ressources GCP + K8s par équipe
+GitHub (gitops/, claims/) ──sync──► Argo CD ──► Kyverno ──► kro ──► Config Connector + K8s ──► ressources par équipe
                                         │
 GKE Standard zonal (spot)               ├─ Portail FastAPI + HTMX (catalogue, demandes)
                                         ├─ (optionnel) LiteLLM ──► Vertex AI (Claude)
@@ -29,7 +29,7 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | IaC | Terraform (compatible OpenTofu), deux couches : socle persistant / plateforme éphémère |
 | Cluster | GKE Standard zonal, nœuds spot, aucun GPU |
 | GitOps | Argo CD, app-of-apps |
-| API développeur | Crossplane v2 + provider GCP (objets cloud et Kubernetes en self-service) |
+| API développeur | kro au-dessus de Config Connector (objets GCP et Kubernetes en self-service) |
 | Politiques | Kyverno (CI + admission) |
 | Portail | FastAPI + HTMX |
 | Gateway LLM *(optionnel)* | LiteLLM → Vertex AI (Claude), pas de modèle auto-hébergé |
@@ -42,7 +42,7 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 |---|---|---|
 | 1 | Squelette, ADR, Makefile, `infra/bootstrap` | ✅ |
 | 2 | `infra/platform` (VPC, GKE, IAM, WI) + `up` / `down` / `check-orphans` | ⏳ |
-| 3 | Argo CD app-of-apps, Kyverno, ESO, Crossplane v2, OpenCost | — |
+| 3 | Argo CD app-of-apps, Kyverno, ESO, Config Connector, kro, OpenCost | — |
 | 4 | API `TeamSpace` (namespace, quotas, bucket GCS, compte de service WI), politiques, CI Kyverno | — |
 | 5 | Portail : catalogue, formulaires, PR | — |
 | 6 | Chemin local kind, polish | — |
