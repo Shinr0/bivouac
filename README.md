@@ -39,6 +39,7 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | GitOps | Argo CD, app-of-apps |
 | API développeur | kro au-dessus de Config Connector (objets GCP et Kubernetes en self-service) |
 | Politiques | Kyverno (CI + admission) |
+| Référentiel d'équipes | `catalog/` dans Git, format descripteur Backstage (sans Backstage) |
 | Portail | FastAPI + HTMX |
 | Gateway LLM *(optionnel)* | LiteLLM → Vertex AI (Claude), pas de modèle auto-hébergé |
 | Outillage IA | Claude Code, skills de projet, revue `claude-code-action` (OIDC, sans clé) |
@@ -51,8 +52,8 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | 1 | Squelette, ADR, Makefile, `infra/bootstrap` | ✅ |
 | 2 | `infra/platform` (VPC, GKE, IAM, WI) + `up` / `down` / `check-orphans` | ⏳ |
 | 3 | Argo CD app-of-apps, Kyverno, ESO, Config Connector, kro, OpenCost | — |
-| 4 | API `TeamSpace` (namespace, quotas, bucket GCS, compte de service WI), politiques, CI Kyverno | — |
-| 5 | Portail : catalogue, formulaires, PR | — |
+| 4 | Référentiel d'équipes `catalog/`, API `TeamSpace` (namespace, quotas, bucket GCS, compte de service WI), politiques, CI Kyverno | — |
+| 5 | Portail : pages équipes, catalogue, formulaires, PR | — |
 | 6 | Chemin local kind, polish | — |
 | 7 *(opt.)* | LiteLLM + Vertex, API `LLMAccess` | optionnel |
 | 8 *(opt.)* | Assistant IA dans le portail | optionnel |

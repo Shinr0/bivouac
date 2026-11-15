@@ -154,6 +154,19 @@ Une ResourceGraphDefinition par capacité sous `platform/rgd/`. Les ressources G
 Config Connector (`StorageBucket`, `IAMServiceAccount`, liaisons IAM…) que kro crée dans l'ordre de
 leurs dépendances. Une seule RGD validée (tests e2e) avant d'en écrire d'autres.
 
+### Référentiel d'équipes et d'applications (`catalog/`)
+Source de vérité **dans Git**, qui survit à `make down` ([ADR 0016](docs/adr/0016-team-and-app-catalog.md)) :
+un fichier par entité au format descripteur du catalogue Backstage (`backstage.io/v1alpha1`).
+- `Group` : équipe, adresse de groupe, rattachement (`spec.parent`), membres ; annotations
+  `bivouac/manager`, `bivouac/chat-channel`, `bivouac/on-call`, `bivouac/cost-center`.
+- `System` / `Component` : application, équipe propriétaire, cycle de vie, socle technique
+  (`metadata.tags`), dépendances (`spec.dependsOn`) ; liens vers runbook et tableaux de bord.
+- `Resource` : ressources GCP d'une équipe (bucket, compte de service).
+- Validation en CI (schéma du dépôt + références résolues) ; toute demande `TeamSpace` référence un
+  `Group` existant ; le label `team` relie ressources et coûts au référentiel.
+- Équipes et personnes **fictives** dans ce dépôt public ; en contexte client, synchronisation
+  depuis l'annuaire (Google Workspace / Cloud Identity).
+
 ### `TeamSpace`
 Crée pour une équipe :
 - **Kubernetes** : Namespace, ResourceQuota, LimitRange, NetworkPolicy par défaut, RoleBinding,
@@ -193,6 +206,8 @@ Exemples de claims dans `claims/examples/`.
 Python 3.12+, FastAPI, Jinja2 + HTMX, aucun framework JS lourd.
 
 Pages :
+0. **Équipes** : une page par équipe, lue dans `catalog/` — manager, contacts, applications et leur
+   socle technique, ressources, coûts (OpenCost).
 1. **Catalogue** : liste des RGD disponibles (lues depuis l'API Kubernetes) et des demandes existantes
    par équipe, avec leur statut kro et celui des ressources Config Connector.
 2. **Nouvelle demande** : formulaire **généré depuis le schéma OpenAPI** de la CRD → produit le YAML du claim
@@ -323,8 +338,8 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 | 1 | Squelette dépôt, README, ADR, Makefile, `infra/bootstrap` | `terraform validate` OK ; README explique les prérequis |
 | 2 | `infra/platform` (VPC, GKE, pools, IAM, WI) + `up.sh`/`down.sh`/`check-orphans` | Cycle `up` → `down` → `check-orphans` sans orphelin, deux fois de suite |
 | 3 | Argo CD app-of-apps, Kyverno, ESO, Config Connector, kro, OpenCost | Tout `Synced/Healthy` après `make up` |
-| 4 | RGD `TeamSpace` (objets K8s + bucket + compte de service WI via Config Connector) + politiques + exemples + CI Kyverno + test e2e | Une demande d'exemple crée l'espace d'équipe et ses ressources GCP ; une demande invalide est refusée en CI et dans le cluster ; `make down` ne laisse aucun bucket ni compte de service |
-| 5 | Portail : catalogue, formulaires, ouverture de PR | Demande via UI → PR GitHub → merge → ressource créée |
+| 4 | Référentiel `catalog/` (équipes, applications) + RGD `TeamSpace` (objets K8s + bucket + compte de service WI via Config Connector) + politiques + exemples + CI Kyverno + test e2e | Une demande d'exemple crée l'espace d'équipe et ses ressources GCP ; une demande invalide est refusée en CI et dans le cluster ; `make down` ne laisse aucun bucket ni compte de service |
+| 5 | Portail : pages équipes, catalogue, formulaires, ouverture de PR | Demande via UI → PR GitHub → merge → ressource créée |
 | 6 | Chemin local kind, polish README (schéma, GIF de démo), `docs/demo.md` | Un visiteur lance `make local-up` sans compte cloud |
 | 7 *(optionnelle)* | LiteLLM + Vertex (WI, sans clé) + RGD `LLMAccess` | Une équipe obtient une clé et appelle Claude via le gateway ; budget appliqué |
 | 8 *(optionnelle)* | Assistant IA dans le portail (outils, confirmation avant PR) | Scénario de démo bout en bout scripté dans `docs/demo.md` |
@@ -355,6 +370,7 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 ├── platform/
 │   ├── rgd/                 # une ResourceGraphDefinition par capacité (+ variante locale)
 │   └── policies/
+├── catalog/                # référentiel : équipes, applications, ressources (format Backstage)
 ├── claims/
 │   └── examples/
 ├── portal/

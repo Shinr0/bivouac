@@ -38,6 +38,8 @@ la spécification complète dans [`PLAN.md`](../PLAN.md).
 
 ## Flux d'une demande
 
+0. L'équipe existe dans le **référentiel** `catalog/` (Git, format Backstage) : manager, contacts,
+   applications ([ADR 0016](adr/0016-team-and-app-catalog.md)).
 1. Une équipe (ou l'assistant IA, après confirmation) ouvre une **pull request** ajoutant un claim sous `claims/`.
 2. La CI exécute les politiques **Kyverno** sur le claim ; un humain relit et merge.
 3. **Argo CD** synchronise le claim ; Kyverno le revalide à l'admission.

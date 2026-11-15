@@ -19,5 +19,6 @@ Règles : un ADR n'est jamais modifié sur le fond ni supprimé ; une décision 
 | [0013](0013-ghcr-images.md) | Images sur GHCR, construites par GitHub Actions | Accepté (implémentation en phase 5) |
 | [0014](0014-ai-assisted-workflow.md) | Développer avec Claude Code, sous garde-fous | Accepté |
 | [0015](0015-optional-in-platform-ai.md) | IA intégrée à la plateforme : optionnelle, LiteLLM + Vertex AI | Accepté (phases optionnelles 7–8) |
+| [0016](0016-team-and-app-catalog.md) | Référentiel d'équipes et d'applications dans Git, au format Backstage | Accepté (implémentation en phase 4, affichage dans le portail en phase 5) |
 
 Nouvelle décision : skill `new-adr` ou copier [`0000-template.md`](0000-template.md).
