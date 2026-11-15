@@ -14,9 +14,9 @@ plateforme interne de développement (IDP), sans payer d'infrastructure entre de
 
 - **Construite avec un agent IA, sous contrôle** : Claude Code itère sur le dépôt, encadré par
   des règles (`CLAUDE.md`), des garde-fous (permissions, hooks), un contexte économe
-  et des revues IA à coût borné — voir PLAN.md § 16 et [ADR 0019](docs/adr/0019-ai-assisted-workflow.md).
+  et des revues IA à coût borné — voir PLAN.md § 16 et [ADR 0014](docs/adr/0014-ai-assisted-workflow.md).
 - **IA dans la plateforme (phases optionnelles)** : accès LLM par équipe via LiteLLM + Vertex AI,
-  assistant qui ouvre des pull requests — reporté ([ADR 0018](docs/adr/0018-defer-in-platform-ai.md)).
+  assistant qui ouvre des pull requests — en option ([ADR 0015](docs/adr/0015-optional-in-platform-ai.md)).
 
 > Projet en construction, phase par phase. Spécification complète : [`PLAN.md`](PLAN.md).
 
@@ -54,8 +54,8 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | 4 | API `TeamSpace` (namespace, quotas, bucket GCS, compte de service WI), politiques, CI Kyverno | — |
 | 5 | Portail : catalogue, formulaires, PR | — |
 | 6 | Chemin local kind, polish | — |
-| 7 *(opt.)* | LiteLLM + Vertex, API `LLMAccess` | reporté |
-| 8 *(opt.)* | Assistant IA dans le portail | reporté |
+| 7 *(opt.)* | LiteLLM + Vertex, API `LLMAccess` | optionnel |
+| 8 *(opt.)* | Assistant IA dans le portail | optionnel |
 | transverse | Workflow Claude Code : contexte économe, garde-fous, revues IA | ✅ |
 
 ## Prérequis
@@ -121,7 +121,7 @@ make down        # destruction + check-orphans  (phase 2)
 ## Travailler sur le dépôt avec Claude Code
 
 Le dépôt est fait pour être modifié avec [Claude Code](https://claude.com/claude-code), sous
-garde-fous versionnés (PLAN.md § 16, [ADR 0019](docs/adr/0019-ai-assisted-workflow.md)) :
+garde-fous versionnés (PLAN.md § 16, [ADR 0014](docs/adr/0014-ai-assisted-workflow.md)) :
 
 | Élément | Rôle |
 |---|---|
@@ -151,7 +151,7 @@ le workspace, puis créer les variables de dépôt `ANTHROPIC_FEDERATION_RULE_ID
 
 Prix relevés en novembre 2026, à revérifier dans le calculateur GCP. Garde-fous : budget GCP,
 nœuds spot, aucun GPU, interdiction des PVC/LoadBalancer, contrôle d'orphelins
-après chaque `down` ([ADR 0015](docs/adr/0015-finops-guardrails.md)).
+après chaque `down` ([ADR 0012](docs/adr/0012-finops-guardrails.md)).
 
 ## Structure du dépôt
 

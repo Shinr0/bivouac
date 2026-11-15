@@ -4,20 +4,7 @@
 > Les choix d'outils sont arrêtés ; les versions exactes, la syntaxe des APIs et des charts
 > doivent être **vérifiées dans la documentation officielle au moment de l'implémentation**
 > (voir § 12 « Points à vérifier »). Ne rien inventer : en cas de doute, lire la doc ou demander.
->
-> **Révision du 2026-11-15** : pas de GPU ni de modèle auto-hébergé ; les LLM passent uniquement
-> par Vertex AI ([ADR 0017](docs/adr/0017-vertex-only-no-gpu.md)). L'ancien volet KServe/vLLM est retiré.
->
-> **Révision du 2026-11-15 (bis)** : l'IA **intégrée à la plateforme** (LiteLLM, Vertex AI, `LLMAccess`,
-> assistant du portail) est **reportée** en phases optionnelles 7 et 8
-> ([ADR 0018](docs/adr/0018-defer-in-platform-ai.md)). L'IA intervient d'abord **dans la façon de construire**
-> la plateforme : Claude Code, contexte économe, garde-fous et revues
-> ([ADR 0019](docs/adr/0019-ai-assisted-workflow.md), § 16). Les sections qui décrivent l'IA intégrée
-> restent valables pour ces phases optionnelles.
->
-> **Révision du 2026-11-15 (ter)** : l'API de plateforme expose aussi des **objets cloud GCP** en
-> self-service : **kro** compose le catalogue au-dessus de **Config Connector**, l'opérateur GCP de
-> Google ([ADR 0021](docs/adr/0021-kro-on-config-connector.md), qui remplace les ADR 0009 et 0020).
+> Les décisions et leurs raisons sont dans `docs/adr/` (une décision par fichier, jamais réécrite).
 
 ---
 
@@ -30,7 +17,8 @@ démontée sans trace (`make down`) pour ne rien payer entre deux essais. Publi�
 public, elle sert aussi de vitrine technique à un consultant freelance Cloud DevOps et se démontre
 en live devant un prospect.
 
-Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
+L'IA intervient d'abord dans **la façon de construire** le labo (Claude Code sous garde-fous, § 16,
+ADR 0014). Deux volets d'IA *intégrée* sont prévus en **phases optionnelles 7–8** (ADR 0015) :
 1. **LLM-as-a-Service** : une équipe demande un accès LLM (Claude sur Vertex AI) par un
    simple claim Git ; la plateforme provisionne, applique quotas et budgets, mesure les coûts.
 2. **Assistant de plateforme** : un agent en langage naturel, intégré au portail, qui aide à
@@ -92,7 +80,7 @@ Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
 | IaC socle GCP | Terraform (ou OpenTofu, compatible) | Standard du marché, certification de l'auteur |
 | Cluster | GKE **Standard zonal** | Le crédit gratuit GKE couvre les frais de gestion d'un cluster zonal ; contrôle des node pools (spot) |
 | GitOps | Argo CD, pattern app-of-apps | Maîtrisé par l'auteur, visuel en démo |
-| API développeur | **kro** (ResourceGraphDefinitions) au-dessus de **Config Connector** | Opérateur GCP de Google comme couche primitive, kro comme catalogue ordonné ; natif GCP, rayon d'impact réduit (ADR 0021) |
+| API développeur | **kro** (ResourceGraphDefinitions) au-dessus de **Config Connector** | Opérateur GCP de Google comme couche primitive, kro comme catalogue ordonné ; natif GCP, rayon d'impact réduit (ADR 0009) |
 | Politiques | Kyverno | Plus simple qu'OPA pour du 100 % Kubernetes ; utilisable en CI (CLI) |
 | Portail | **Maison** : FastAPI + HTMX (pas de SPA) | Backstage jugé trop lourd ; le portail n'est qu'un client de l'API (les CRD) — remplaçable |
 | Gateway LLM | LiteLLM proxy | API OpenAI-compatible, clés virtuelles, budgets, multi-backends |
@@ -399,7 +387,7 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 ## 16. Construire la plateforme avec Claude Code (transverse)
 
 La plateforme est développée avec Claude Code. Le dépôt encadre l'agent pour qu'il reste dans
-le plan et que le coût en tokens reste maîtrisé ([ADR 0019](docs/adr/0019-ai-assisted-workflow.md)).
+le plan et que le coût en tokens reste maîtrisé ([ADR 0014](docs/adr/0014-ai-assisted-workflow.md)).
 
 | Risque | Garde-fou | Où |
 |---|---|---|

@@ -1,6 +1,6 @@
 name: claude-review
 
-# Revue de PR par Claude, bornée en coût (voir docs/adr/0019-ai-assisted-workflow.md) :
+# Revue de PR par Claude, bornée en coût (voir docs/adr/0014-ai-assisted-workflow.md) :
 # - déclenchée à l'ouverture d'une PR prête, au passage draft -> prête, ou par le label
 #   `ai-review` (re-revue à la demande) ; jamais à chaque push ;
 # - diff seulement, outils en lecture + commentaires, nombre de tours plafonné, timeout ;

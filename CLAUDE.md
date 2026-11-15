@@ -13,6 +13,8 @@ Ne lire de `PLAN.md` que la section utile à la tâche (phases : § 13 ; workflo
 - Aucun PVC, LoadBalancer ou IP statique sans ADR ; toute ressource GCP porte `env=bivouac`.
 - Jamais `make up/down/bootstrap`, `terraform apply/destroy` ni `git push` sans demande explicite.
 - Code et identifiants en anglais, documentation en français.
+- Toute décision est historisée : un ADR n'est jamais modifié sur le fond ni supprimé ; une
+  décision révisée = nouvel ADR qui remplace l'ancien (skill `new-adr`). Les ADR 0001–0015 sont la base.
 
 ## Commandes
 - `make test` : contrôles statiques, à lancer après chaque modification.
