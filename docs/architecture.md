@@ -9,7 +9,7 @@ la spécification complète dans [`PLAN.md`](../PLAN.md).
 |---|---|---|---|
 | Socle | Persistant (`make bootstrap`) | APIs, bucket de state, secret `github-token`, budget | Terraform, state local |
 | Plateforme | Éphémère (`make up` / `make down`) | VPC, GKE zonal, node pools spot, IAM / Workload Identity, Argo CD | Terraform, state GCS |
-| Services | Éphémère, réconcilié | Kyverno, ESO, kro, OpenCost, LiteLLM, KServe, portail | Argo CD (GitOps) |
+| Services | Éphémère, réconcilié | Kyverno, ESO, kro, OpenCost, LiteLLM, portail | Argo CD (GitOps) |
 | Demandes | Éphémère, par PR | Claims `TeamSpace`, `LLMAccess` | Git → Argo CD → kro |
 
 ## Vue d'ensemble
@@ -27,12 +27,11 @@ la spécification complète dans [`PLAN.md`](../PLAN.md).
 │        │                                                                                      │
 │        ▼                                                                                      │
 │  Gateway LLM (LiteLLM, API OpenAI-compatible, clés virtuelles + budgets par équipe)           │
-│        ├──► Vertex AI (Claude via Model Garden)        [par défaut, facturé à l'usage]        │
-│        └──► KServe + vLLM sur nœud GPU L4 spot         [optionnel, à la demande]              │
+│        └──► Vertex AI (Claude via Model Garden)        [seul backend, facturé à l'usage]      │
 │                                                                                               │
 │  OpenCost (coûts par namespace/équipe)   Prometheus/Grafana (léger)                           │
 │                                                                                               │
-│  Pools : cpu-spot (2× e2-standard-4)    gpu-spot (g2-standard-4, L4, min=0)                   │
+│  Pool : cpu-spot (e2-standard-4, spot) — aucun GPU                                            │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
         ▲ Workload Identity (KSA ↔ GSA roles/aiplatform.user)        ▲ accès : port-forward / IAP
 ```

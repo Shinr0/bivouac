@@ -17,7 +17,7 @@ la détruit sans laisser de ressource facturée.
 GitHub (gitops/, claims/) ──sync──► Argo CD ──► Kyverno ──► kro ──► ressources par équipe
                                         │
 GKE Standard zonal (spot)               ├─ Portail FastAPI + HTMX (catalogue, demandes, assistant)
-                                        ├─ LiteLLM ──► Vertex AI (Claude) | KServe + vLLM (GPU L4 spot)
+                                        ├─ LiteLLM ──► Vertex AI (Claude)
                                         └─ OpenCost, Prometheus/Grafana
 ```
 
@@ -26,12 +26,12 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | Couche | Outil |
 |---|---|
 | IaC | Terraform (compatible OpenTofu), deux couches : socle persistant / plateforme éphémère |
-| Cluster | GKE Standard zonal, nœuds spot, GPU à 0 par défaut |
+| Cluster | GKE Standard zonal, nœuds spot, aucun GPU |
 | GitOps | Argo CD, app-of-apps |
 | API développeur | kro (ResourceGraphDefinitions) |
 | Politiques | Kyverno (CI + admission) |
 | Portail | FastAPI + HTMX |
-| Gateway LLM | LiteLLM → Vertex AI / KServe + vLLM |
+| Gateway LLM | LiteLLM → Vertex AI (Claude), seul backend — pas de modèle auto-hébergé |
 | FinOps | Budget GCP, OpenCost, budgets LiteLLM |
 
 ## Avancement
@@ -45,8 +45,7 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | 5 | LiteLLM + Vertex, RGD `LLMAccess` | — |
 | 6 | Portail : catalogue, formulaires, PR | — |
 | 7 | Assistant IA | — |
-| 8 | Volet GPU : KServe + vLLM | — |
-| 9 | Chemin local kind, polish | — |
+| 8 | Chemin local kind, polish | — |
 
 ## Prérequis
 
@@ -67,7 +66,7 @@ Ce sont les **seules** opérations hors code (PLAN.md § 10).
 1. **Projet GCP avec facturation et identifiants isolés.** Le projet utilise sa propre
    configuration gcloud (`~/.config/gcloud-platform-ai-demo`, ADC comprises) : la configuration
    gcloud globale de la machine n'est jamais lue ni modifiée. Renseigner `GCP_ACCOUNT` et
-   `GCP_PROJECT_ID` dans `.env` (étape 4), puis :
+   `GCP_PROJECT_ID` dans `.env` (étape 3), puis :
    ```bash
    make gcloud-login   # ouvre le navigateur : connexion CLI + ADC sur GCP_ACCOUNT
    make whoami         # vérifie compte (CLI et ADC) et projet
@@ -77,20 +76,18 @@ Ce sont les **seules** opérations hors code (PLAN.md § 10).
    facturation (`roles/billing.costsManager` ou administrateur de facturation).
 2. **Activer les modèles Claude dans Vertex AI Model Garden** et accepter les conditions
    (console GCP › Vertex AI › Model Garden). Non automatisable proprement, par projet.
-3. **Quota GPU L4** en `europe-west4` — uniquement pour le volet auto-hébergé (phase 8).
-   Souvent à zéro sur un projet neuf ; délai de réponse variable.
-4. **Configuration locale** :
+3. **Configuration locale** :
    ```bash
    cp .env.example .env   # GCP_ACCOUNT, GCP_PROJECT_ID, GCP_BILLING_ACCOUNT_ID
    ```
-5. **Socle persistant** :
+4. **Socle persistant** :
    ```bash
    make bootstrap
    ```
    Crée : activation des APIs, bucket de state `<PROJECT_ID>-tfstate` (versionné), secret vide
    `github-token`, budget mensuel (50 € par défaut, alertes à 50 / 90 / 100 %). Le state de cette
    couche reste local — voir [ADR 0003](docs/adr/0003-bootstrap-local-state.md).
-6. **Token GitHub** : créer un token *fine-grained* limité à ce dépôt (permissions
+5. **Token GitHub** : créer un token *fine-grained* limité à ce dépôt (permissions
    *Contents* et *Pull requests* en lecture/écriture), puis l'ajouter au secret sans qu'il
    passe par l'historique du shell :
    ```bash
@@ -116,12 +113,12 @@ make down        # destruction + check-orphans  (phase 2)
 |---|---|
 | Socle (bucket, secret, budget) | ≈ 0 € / mois |
 | Nœud e2-standard-4 spot (europe-west4) | ≈ 0,056 $/h |
-| Nœud g2-standard-4 + L4 spot | ≈ 0,37 $/h, seulement si `make gpu-on` |
 | Frais de gestion GKE (cluster zonal) | 0,10 $/h, couverts par le crédit gratuit GKE |
-| Démo de 2 h avec GPU | quelques dollars |
+| Vertex AI (Claude) | au token, plafonné par les budgets LiteLLM |
+| Démo de 2 h (infra) | < 1 $ |
 
 Prix relevés en novembre 2026, à revérifier dans le calculateur GCP. Garde-fous : budget GCP,
-nœuds spot, GPU à 0, budgets LiteLLM, interdiction des PVC/LoadBalancer, contrôle d'orphelins
+nœuds spot, aucun GPU, budgets LiteLLM, interdiction des PVC/LoadBalancer, contrôle d'orphelins
 après chaque `down` ([ADR 0015](docs/adr/0015-finops-guardrails.md)).
 
 ## Structure du dépôt

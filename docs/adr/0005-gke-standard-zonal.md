@@ -4,18 +4,17 @@
 - **Date** : 2026-11-10
 
 ## Contexte
-Il faut un cluster Kubernetes managé, créé et détruit en quelques minutes, avec un pool GPU
-optionnel, au coût le plus bas possible.
+Il faut un cluster Kubernetes managé, créé et détruit en quelques minutes, au coût le plus bas possible.
 
 ## Décision
 - **GKE Standard, cluster zonal** (europe-west4) : le crédit gratuit GKE couvre les frais de
-  gestion d'un cluster zonal ; Standard permet de piloter finement les node pools (GPU, spot, taints).
-- Nœuds **spot** sur tous les pools ; pool GPU L4 à **0** nœud par défaut.
+  gestion d'un cluster zonal ; Standard permet de piloter finement les node pools (spot, type de machine, autoscaling).
+- Nœuds **spot** sur tous les pools ; aucun GPU ([ADR 0017](0017-vertex-only-no-gpu.md)).
 - `deletion_protection = false` : le cluster doit pouvoir être détruit sans intervention.
 
 ## Alternatives écartées
-- GKE Autopilot : facturation par pod pratique, mais moins de contrôle sur les GPU spot et les
-  taints, et un comportement de coût moins lisible en démo.
+- GKE Autopilot : facturation par pod pratique, mais moins de contrôle sur les nœuds spot et leur
+  dimensionnement, et un comportement de coût moins lisible en démo.
 - Cluster régional : frais de gestion non couverts par le crédit gratuit, triple de nœuds.
 
 ## Conséquences

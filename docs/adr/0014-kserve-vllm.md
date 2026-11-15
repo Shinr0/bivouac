@@ -1,6 +1,6 @@
 # 0014. KServe + vLLM pour les modèles auto-hébergés
 
-- **Statut** : Accepté (implémentation en phase 8)
+- **Statut** : Remplacé par [0017](0017-vertex-only-no-gpu.md) (2026-11-15)
 - **Date** : 2026-11-10
 
 ## Contexte

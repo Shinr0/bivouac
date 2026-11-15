@@ -1,10 +1,10 @@
-# 0013. Vertex AI (Claude via Model Garden) comme backend par défaut
+# 0013. Vertex AI (Claude via Model Garden) comme backend LLM
 
 - **Statut** : Accepté (implémentation en phase 5)
 - **Date** : 2026-11-10
 
 ## Contexte
-Le backend par défaut doit fonctionner sans GPU, être facturé à l'usage et s'authentifier sans clé.
+Le backend LLM (unique, cf. ADR 0017) doit fonctionner sans GPU, être facturé à l'usage et s'authentifier sans clé.
 
 ## Décision
 Claude servi par Vertex AI, appelé par LiteLLM via Workload Identity (`roles/aiplatform.user`).

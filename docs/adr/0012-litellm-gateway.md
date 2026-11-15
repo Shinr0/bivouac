@@ -5,11 +5,12 @@
 
 ## Contexte
 Les équipes doivent consommer des LLM via une API unique, avec des clés individuelles, des
-budgets et une mesure de consommation, quel que soit le backend (managé ou auto-hébergé).
+budgets et une mesure de consommation, indépendamment du fournisseur de modèles.
 
 ## Décision
-LiteLLM proxy : API compatible OpenAI, clés virtuelles, budgets par clé, routage multi-backends
-(Vertex AI, KServe/vLLM). Base Postgres sans PVC (ADR 0007).
+LiteLLM proxy : API compatible OpenAI, clés virtuelles, budgets par clé, alias de modèles
+renvoyant vers Vertex AI ([ADR 0017](0017-vertex-only-no-gpu.md)). Le gateway garde la porte ouverte à
+d'autres fournisseurs sans changer l'API exposée aux équipes. Base Postgres sans PVC (ADR 0007).
 
 ## Conséquences
 - Syntaxe `model_list` Vertex, API admin des clés et authentification ADC à vérifier en phase 5.

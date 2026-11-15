@@ -15,7 +15,7 @@ export CLOUDSDK_CONFIG GOOGLE_APPLICATION_CREDENTIALS
 
 TF_DIRS := infra/bootstrap
 
-.PHONY: help gcloud-login whoami bootstrap up demo gpu-on gpu-off down check-orphans local-up test \
+.PHONY: help gcloud-login whoami bootstrap up demo down check-orphans local-up test \
         test-terraform
 
 help: ## Affiche cette aide
@@ -37,20 +37,14 @@ up: ## Couche éphémère + attente Healthy (phase 2)
 demo: ## Port-forwards portail / Argo CD / Grafana (phase 3+)
 	@$(call todo,3)
 
-gpu-on: ## Active le pool GPU L4 spot (phase 8)
-	@$(call todo,8)
-
-gpu-off: ## Désactive le pool GPU (phase 8)
-	@$(call todo,8)
-
 down: ## Destruction complète + contrôle d'orphelins (phase 2)
 	@$(call todo,2)
 
 check-orphans: ## Liste les ressources facturables résiduelles (phase 2)
 	@$(call todo,2)
 
-local-up: ## Chemin kind sans GCP (phase 9)
-	@$(call todo,9)
+local-up: ## Chemin kind sans GCP (phase 8)
+	@$(call todo,8)
 
 test: test-terraform ## Tous les contrôles statiques (s'étoffe à chaque phase)
 
