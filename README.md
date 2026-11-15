@@ -1,8 +1,16 @@
-# Plateforme éphémère sur GCP, construite avec Claude Code
+# Bivouac
 
-Une **plateforme interne de développement (IDP) en self-service** qui n'existe que le temps d'une
-démo : `make up` la construit depuis un projet GCP vide, `make down` la détruit sans laisser de
-ressource facturée.
+**Le camp de base pour explorer le platform engineering sur GCP : monté en 20 minutes, démonté
+sans laisser de trace.**
+
+Bivouac est un **laboratoire** pour rechercher et tester des concepts de platform engineering sur
+Google Cloud — API de plateforme, GitOps, politiques, FinOps, self-service — sur une vraie
+plateforme interne de développement (IDP), sans payer d'infrastructure entre deux essais.
+
+- `make up` construit toute la plateforme depuis un projet GCP vide ;
+- on expérimente : une API de plateforme (kro + Config Connector), une politique Kyverno, un
+  nouveau composant ;
+- `make down` détruit tout, et un contrôle échoue s'il reste la moindre ressource facturée.
 
 - **Construite avec un agent IA, sous contrôle** : Claude Code itère sur le dépôt, encadré par
   des règles (`CLAUDE.md`), des garde-fous (permissions, hooks), un contexte économe
@@ -67,7 +75,7 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 Ce sont les **seules** opérations hors code (PLAN.md § 10).
 
 1. **Projet GCP avec facturation et identifiants isolés.** Le projet utilise sa propre
-   configuration gcloud (`~/.config/gcloud-platform-ai-demo`, ADC comprises) : la configuration
+   configuration gcloud (`~/.config/gcloud-bivouac`, ADC comprises) : la configuration
    gcloud globale de la machine n'est jamais lue ni modifiée. Renseigner `GCP_ACCOUNT` et
    `GCP_PROJECT_ID` dans `.env` (étape 3), puis :
    ```bash
@@ -94,7 +102,7 @@ Ce sont les **seules** opérations hors code (PLAN.md § 10).
    *Contents* et *Pull requests* en lecture/écriture), puis l'ajouter au secret sans qu'il
    passe par l'historique du shell :
    ```bash
-   export CLOUDSDK_CONFIG=~/.config/gcloud-platform-ai-demo   # config isolée
+   export CLOUDSDK_CONFIG=~/.config/gcloud-bivouac   # config isolée
    read -rs TOKEN && printf '%s' "$TOKEN" | \
      gcloud secrets versions add github-token --data-file=- && unset TOKEN
    ```

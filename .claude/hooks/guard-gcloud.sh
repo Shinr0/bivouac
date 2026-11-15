@@ -14,9 +14,9 @@ grep -Eq '(^|[;&|(`]|(sudo|env|exec|time|xargs)[[:space:]]+)[[:space:]]*([A-Za-z
 # Simple détection de présence de l'outil.
 grep -Eq '(command -v|which|type) +gcloud' <<<"$cmd" && exit 0
 # Config isolée explicitement fournie.
-grep -Eq 'CLOUDSDK_CONFIG=[^[:space:]]*gcloud-platform-ai-demo' <<<"$cmd" && exit 0
+grep -Eq 'CLOUDSDK_CONFIG=[^[:space:]]*gcloud-bivouac' <<<"$cmd" && exit 0
 
 echo "Bloqué par .claude/hooks/guard-gcloud.sh : gcloud appelé hors de la config isolée du projet \
 (la config globale est celle d'un client). Utiliser une cible make (make whoami, make bootstrap…) \
-ou préfixer CLOUDSDK_CONFIG=\$HOME/.config/gcloud-platform-ai-demo." >&2
+ou préfixer CLOUDSDK_CONFIG=\$HOME/.config/gcloud-bivouac." >&2
 exit 2

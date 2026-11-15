@@ -1,6 +1,6 @@
 resource "google_billing_budget" "project" {
   billing_account = var.billing_account_id
-  display_name    = "platform-ai-demo (${var.project_id})"
+  display_name    = "bivouac (${var.project_id})"
 
   budget_filter {
     projects = ["projects/${data.google_project.this.number}"]

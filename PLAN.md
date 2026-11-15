@@ -1,4 +1,4 @@
-# Plateforme IA éphémère sur GCP — Spécification de déploiement
+# Bivouac — Spécification de déploiement
 
 > Document d'entrée pour Claude Code. Il décrit **quoi** construire et **dans quel ordre**.
 > Les choix d'outils sont arrêtés ; les versions exactes, la syntaxe des APIs et des charts
@@ -23,9 +23,12 @@
 
 ## 1. Contexte et objectif
 
-Vitrine technique d'un consultant freelance Cloud DevOps (GCP, Kubernetes, Terraform,
-Platform Engineering) : une **plateforme interne de développement (IDP) en self-service, avec de
-l'IA par-dessus**, publiée en dépôt GitHub public et démontrable en live devant un prospect.
+**Bivouac** : un laboratoire pour **rechercher et tester des concepts de platform engineering sur
+GCP**. Une plateforme interne de développement (IDP) en self-service complète, montée à la demande
+(`make up`), sur laquelle on expérimente (API de plateforme, GitOps, politiques, FinOps), puis
+démontée sans trace (`make down`) pour ne rien payer entre deux essais. Publiée en dépôt GitHub
+public, elle sert aussi de vitrine technique à un consultant freelance Cloud DevOps et se démontre
+en live devant un prospect.
 
 Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
 1. **LLM-as-a-Service** : une équipe demande un accès LLM (Claude sur Vertex AI) par un
@@ -37,7 +40,7 @@ Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
 
 - `make up` crée **toute** l'infrastructure depuis un projet GCP vide (hors socle persistant, § 4).
 - `make down` détruit **tout**, sans ressource orpheline facturée.
-- L'infra ne vit que le temps d'une démo → coût proche de zéro hors démo.
+- L'infra ne vit que le temps d'un essai ou d'une démo → coût proche de zéro le reste du temps.
 - Cible : `make up` en moins de ~20 min (à mesurer), `make down` en moins de ~15 min.
 - Idempotence : relancer `make up` ou `make down` ne casse rien.
 
@@ -50,7 +53,7 @@ Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
 2. **Zéro secret dans Git, zéro clé JSON de compte de service.** Workload Identity partout.
    Les seuls secrets (token GitHub) vivent dans Secret Manager (socle persistant).
 3. **Rien ne survit à `make down` en dehors du socle persistant.** Toutes les ressources GCP
-   créées portent le label `env=platform-ai-demo` pour permettre un contrôle d'orphelins.
+   créées portent le label `env=bivouac` pour permettre un contrôle d'orphelins.
 4. **L'IA ne touche jamais le cluster directement** : elle produit des PR, la validation passe
    par Kyverno (en CI et dans le cluster) + revue humaine.
 5. **Coûts bornés par construction** : spot partout, aucun GPU, budgets LLM plafonnés.
@@ -119,7 +122,7 @@ State de cette couche : local ou bucket dédié créé manuellement — document
 
 - VPC dédié + sous-réseau (ranges secondaires pods/services), règles de pare-feu minimales.
 - Cluster GKE Standard **zonal**, `deletion_protection = false`, Workload Identity activée,
-  release channel `REGULAR`, labels `env=platform-ai-demo`.
+  release channel `REGULAR`, labels `env=bivouac`.
 - Node pool `cpu-spot` : e2-standard-4, spot, autoscaling 1–3 (à ajuster après mesure).
 - Aucun node pool GPU.
 - Compte de service Google `litellm-vertex` avec `roles/aiplatform.user` + binding Workload Identity
@@ -385,7 +388,7 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 - Épingler toutes les versions (providers, charts, images). Jamais de `latest`.
 - Aucun secret, clé JSON ou token dans le dépôt. Workload Identity uniquement.
 - Aucun PVC, LoadBalancer ou IP statique sans ADR justifiant le nettoyage au destroy.
-- Toute ressource GCP porte le label env=platform-ai-demo.
+- Toute ressource GCP porte le label env=bivouac.
 - Ne jamais exécuter `make up`, `terraform apply` ou `destroy` sans demande explicite de l'utilisateur.
 - Après chaque phase : `make test` vert, README à jour, commit.
 - Langue : code et identifiants en anglais, documentation en français.

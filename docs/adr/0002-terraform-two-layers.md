@@ -13,7 +13,7 @@ des APIs (lente et gratuite).
   par `make down`. Coût quasi nul (un bucket de quelques Ko, un secret).
 - `infra/platform/` : couche **éphémère**, state dans le bucket GCS du socle.
 - Terraform (compatible OpenTofu ; aucune fonctionnalité propre à l'un ou l'autre n'est utilisée).
-- Toutes les ressources portent `env=platform-ai-demo` (via `default_labels` du provider) pour
+- Toutes les ressources portent `env=bivouac` (via `default_labels` du provider) pour
   permettre le contrôle d'orphelins.
 
 ## Alternatives écartées

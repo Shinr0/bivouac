@@ -53,7 +53,7 @@ jobs:
 
             Cherche, par ordre de priorité :
             1. Dérives par rapport aux règles de CLAUDE.md : version non épinglée ou `latest`,
-               secret ou clé dans le diff, ressource GCP sans label env=platform-ai-demo,
+               secret ou clé dans le diff, ressource GCP sans label env=bivouac,
                PVC / LoadBalancer / IP statique sans ADR, travail d'une phase future,
                appel gcloud hors de la config isolée.
             2. Bugs : Terraform invalide ou destructeur, scripts Bash non idempotents,

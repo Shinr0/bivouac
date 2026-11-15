@@ -53,4 +53,4 @@ L'IA n'a **aucun** droit d'écriture sur le cluster : sa seule action est d'ouvr
 - Aucun secret dans Git, aucune clé de compte de service ([ADR 0004](adr/0004-workload-identity-no-keys.md)).
 - Ni PVC, ni LoadBalancer, ni IP statique ([ADR 0007](adr/0007-no-persistent-cloud-resources-from-k8s.md)).
 - Seule exception : les ressources GCP des équipes, créées par Config Connector, rapides, quasi gratuites, supprimées avec la demande et avant le cluster au `make down` ([ADR 0021](adr/0021-kro-on-config-connector.md)).
-- Label `env=platform-ai-demo` sur toute ressource GCP ; `make check-orphans` échoue s'il en reste après `down`.
+- Label `env=bivouac` sur toute ressource GCP ; `make check-orphans` échoue s'il en reste après `down`.

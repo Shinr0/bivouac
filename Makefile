@@ -9,7 +9,7 @@ export
 
 # Configuration gcloud isolée pour ce projet : n'utilise jamais le compte gcloud
 # global de la machine (souvent celui d'un client). ADC incluses.
-CLOUDSDK_CONFIG ?= $(HOME)/.config/gcloud-platform-ai-demo
+CLOUDSDK_CONFIG ?= $(HOME)/.config/gcloud-bivouac
 GOOGLE_APPLICATION_CREDENTIALS ?= $(CLOUDSDK_CONFIG)/application_default_credentials.json
 export CLOUDSDK_CONFIG GOOGLE_APPLICATION_CREDENTIALS
 

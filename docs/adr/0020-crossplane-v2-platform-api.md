@@ -18,7 +18,7 @@ dans le cluster, ni statut par demande, ni réconciliation de l'ensemble.
   **bucket GCS** et **compte de service GCP** lié au compte Kubernetes de l'équipe par Workload
   Identity. Des ressources **rapides à créer et quasi gratuites** ; pas de Cloud SQL, Memorystore
   ou autre ressource lente ou facturée au temps dans la démo.
-- Ressources managées labellisées `env=platform-ai-demo` et `team=<nom>`.
+- Ressources managées labellisées `env=bivouac` et `team=<nom>`.
 - La syntaxe v2 (XR namespacés, groupes d'API des ressources managées, fonctions de composition,
   politiques de gestion) est vérifiée dans la documentation officielle au moment de l'implémentation.
 

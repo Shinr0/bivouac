@@ -1,6 +1,6 @@
 # Règles du projet
 
-IDP éphémère sur GCP construite par phases. **Phase en cours** : tableau « Avancement » du README.
+Bivouac : laboratoire de platform engineering sur GCP, monté et démonté à la demande, construit par phases. **Phase en cours** : tableau « Avancement » du README.
 Ne lire de `PLAN.md` que la section utile à la tâche (phases : § 13 ; workflow IA : § 16).
 
 - Une phase à la fois ; ne pas anticiper la suivante.
@@ -10,7 +10,7 @@ Ne lire de `PLAN.md` que la section utile à la tâche (phases : § 13 ; workflo
 - Aucun secret, clé JSON ou token dans le dépôt. Workload Identity / OIDC uniquement.
 - GCP : uniquement via `make` (config gcloud isolée, compte perso). La config gcloud globale de la
   machine est celle d'un **client** ; un hook bloque tout `gcloud` direct.
-- Aucun PVC, LoadBalancer ou IP statique sans ADR ; toute ressource GCP porte `env=platform-ai-demo`.
+- Aucun PVC, LoadBalancer ou IP statique sans ADR ; toute ressource GCP porte `env=bivouac`.
 - Jamais `make up/down/bootstrap`, `terraform apply/destroy` ni `git push` sans demande explicite.
 - Code et identifiants en anglais, documentation en français.
 

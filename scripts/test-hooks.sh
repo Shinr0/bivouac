@@ -14,7 +14,7 @@ log "Hook guard-gcloud"
 check 0 'ls -la'
 check 0 'make whoami'
 check 0 'command -v gcloud'
-check 0 'CLOUDSDK_CONFIG=$HOME/.config/gcloud-platform-ai-demo gcloud config list'
+check 0 'CLOUDSDK_CONFIG=$HOME/.config/gcloud-bivouac gcloud config list'
 check 2 'gcloud auth list'
 check 2 'cd infra && gcloud projects list'
 check 2 'CLOUDSDK_CONFIG=$HOME/.config/gcloud gcloud config list'

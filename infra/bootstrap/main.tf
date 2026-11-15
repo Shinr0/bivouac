@@ -1,6 +1,6 @@
 locals {
   labels = {
-    env        = "platform-ai-demo"
+    env        = "bivouac"
     layer      = "bootstrap"
     managed-by = "terraform"
   }
