@@ -10,7 +10,7 @@
 | [0006](0006-public-nodes-without-nat.md) | Nœuds publics sans Cloud NAT par défaut | Accepté (implémentation en phase 2) |
 | [0007](0007-no-persistent-cloud-resources-from-k8s.md) | Ni PVC, ni LoadBalancer, ni IP statique dans la démo | Accepté |
 | [0008](0008-argocd-app-of-apps.md) | Argo CD, pattern app-of-apps avec sync waves | Accepté (implémentation en phase 3) |
-| [0009](0009-kro-developer-api.md) | kro comme API développeur | Accepté (implémentation en phases 4–5) |
+| [0009](0009-kro-developer-api.md) | kro comme API développeur | Remplacé par [0020](0020-crossplane-v2-platform-api.md) (2026-11-15) |
 | [0010](0010-kyverno-policies.md) | Kyverno pour les politiques, en CI et dans le cluster | Accepté (implémentation en phase 4) |
 | [0011](0011-portal-fastapi-htmx.md) | Portail maison FastAPI + HTMX | Accepté (implémentation en phases 6–7) |
 | [0012](0012-litellm-gateway.md) | LiteLLM comme gateway LLM | Accepté — reporté en phase optionnelle 7 (ADR 0018) |
@@ -21,5 +21,6 @@
 | [0017](0017-vertex-only-no-gpu.md) | Vertex AI uniquement : ni GPU ni modèle auto-hébergé | Accepté — remplace [0014](0014-kserve-vllm.md) |
 | [0018](0018-defer-in-platform-ai.md) | Reporter l'IA intégrée à la plateforme | Accepté |
 | [0019](0019-ai-assisted-workflow.md) | Développer la plateforme avec Claude Code, sous garde-fous | Accepté |
+| [0020](0020-crossplane-v2-platform-api.md) | Crossplane v2 comme API de plateforme, avec des objets cloud | Accepté — remplace [0009](0009-kro-developer-api.md) |
 
 Nouvelle décision : copier [`0000-template.md`](0000-template.md).

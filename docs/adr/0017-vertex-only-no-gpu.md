@@ -12,7 +12,7 @@ politiques, FinOps, assistant IA).
 
 ## Décision
 - Les LLM sont consommés **uniquement via Vertex AI** (Claude, Model Garden), derrière LiteLLM.
-- Aucun node pool GPU, aucun KServe/vLLM, pas de champ `backend` dans la RGD `LLMAccess`.
+- Aucun node pool GPU, aucun KServe/vLLM, pas de champ `backend` dans `LLMAccess`.
 - Kyverno **interdit** toute demande de ressource `nvidia.com/gpu` dans les pods.
 - La phase « Volet GPU » est supprimée ; le chemin local kind devient la phase 8.
 

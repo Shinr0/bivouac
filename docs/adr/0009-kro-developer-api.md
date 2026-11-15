@@ -1,6 +1,6 @@
 # 0009. kro comme API développeur
 
-- **Statut** : Accepté (implémentation en phases 4–5)
+- **Statut** : Remplacé par [0020](0020-crossplane-v2-platform-api.md) (2026-11-15)
 - **Date** : 2026-11-10
 
 ## Contexte

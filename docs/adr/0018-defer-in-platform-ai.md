@@ -6,7 +6,7 @@
 ## Contexte
 Le plan initial plaçait deux volets IA *dans* la plateforme : un accès LLM par équipe (LiteLLM +
 Vertex AI, RGD `LLMAccess`) et un assistant intégré au portail. Ils dépendent de tout le reste
-(cluster, GitOps, kro, portail), ajoutent un prérequis manuel (Model Garden) et des coûts au token,
+(cluster, GitOps, API de plateforme, portail), ajoutent un prérequis manuel (Model Garden) et des coûts au token,
 et déplacent l'attention de la démonstration principale : une IDP éphémère, gouvernée et frugale.
 
 ## Décision

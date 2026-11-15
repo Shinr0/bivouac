@@ -9,8 +9,8 @@ la spécification complète dans [`PLAN.md`](../PLAN.md).
 |---|---|---|---|
 | Socle | Persistant (`make bootstrap`) | APIs, bucket de state, secret `github-token`, budget | Terraform, state local |
 | Plateforme | Éphémère (`make up` / `make down`) | VPC, GKE zonal, node pools spot, IAM / Workload Identity, Argo CD | Terraform, state GCS |
-| Services | Éphémère, réconcilié | Kyverno, ESO, kro, OpenCost, LiteLLM, portail | Argo CD (GitOps) |
-| Demandes | Éphémère, par PR | Claims `TeamSpace`, `LLMAccess` | Git → Argo CD → kro |
+| Services | Éphémère, réconcilié | Kyverno, ESO, Crossplane v2, OpenCost, portail (LiteLLM en option) | Argo CD (GitOps) |
+| Demandes | Éphémère, par PR | `TeamSpace` (puis `LLMAccess` en option) | Git → Argo CD → Crossplane → GCP + K8s |
 
 ## Vue d'ensemble
 
@@ -21,7 +21,7 @@ la spécification complète dans [`PLAN.md`](../PLAN.md).
                                     │ sync                         │ PR ouverte par le portail/agent
 ┌───────────── GKE Standard zonal (europe-west4) ─────────────────┼────────────────────────────┐
 │                                                                  │                            │
-│  Argo CD (app-of-apps) ──► Kyverno ──► kro (RGD) ──► ressources par équipe                    │
+│  Argo CD (app-of-apps) ──► Kyverno ──► Crossplane v2 ──► ressources GCP + K8s par équipe       │
 │                                                                                               │
 │  Portail (FastAPI + HTMX) ── catalogue, formulaires depuis schémas, chat assistant ───────────┘
 │        │                                                                                      │
@@ -41,7 +41,8 @@ la spécification complète dans [`PLAN.md`](../PLAN.md).
 1. Une équipe (ou l'assistant IA, après confirmation) ouvre une **pull request** ajoutant un claim sous `claims/`.
 2. La CI exécute les politiques **Kyverno** sur le claim ; un humain relit et merge.
 3. **Argo CD** synchronise le claim ; Kyverno le revalide à l'admission.
-4. **kro** génère les ressources (namespace, quotas, accès LLM…) et expose un statut.
+4. **Crossplane** crée les ressources de l'équipe — namespace, quotas, bucket GCS, compte de service
+   GCP lié par Workload Identity — et expose leur statut.
 5. Le portail affiche le statut et les coûts (OpenCost, LiteLLM).
 
 L'IA n'a **aucun** droit d'écriture sur le cluster : sa seule action est d'ouvrir une PR.
@@ -49,5 +50,6 @@ L'IA n'a **aucun** droit d'écriture sur le cluster : sa seule action est d'ouvr
 ## Invariants
 
 - Aucun secret dans Git, aucune clé de compte de service ([ADR 0004](adr/0004-workload-identity-no-keys.md)).
-- Aucune ressource cloud créée par un contrôleur Kubernetes : ni PVC, ni LoadBalancer, ni IP statique ([ADR 0007](adr/0007-no-persistent-cloud-resources-from-k8s.md)).
+- Ni PVC, ni LoadBalancer, ni IP statique ([ADR 0007](adr/0007-no-persistent-cloud-resources-from-k8s.md)).
+- Seule exception : les ressources GCP des équipes, créées par Crossplane, rapides, quasi gratuites, supprimées avec la demande et avant le cluster au `make down` ([ADR 0020](adr/0020-crossplane-v2-platform-api.md)).
 - Label `env=platform-ai-demo` sur toute ressource GCP ; `make check-orphans` échoue s'il en reste après `down`.

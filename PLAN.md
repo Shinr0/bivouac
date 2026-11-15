@@ -8,12 +8,15 @@
 > **Révision du 2026-11-15** : pas de GPU ni de modèle auto-hébergé ; les LLM passent uniquement
 > par Vertex AI ([ADR 0017](docs/adr/0017-vertex-only-no-gpu.md)). L'ancien volet KServe/vLLM est retiré.
 >
-> **Révision du 2026-11-15 (bis)** : l'IA **intégrée à la plateforme** (LiteLLM, Vertex AI, RGD `LLMAccess`,
+> **Révision du 2026-11-15 (bis)** : l'IA **intégrée à la plateforme** (LiteLLM, Vertex AI, `LLMAccess`,
 > assistant du portail) est **reportée** en phases optionnelles 7 et 8
 > ([ADR 0018](docs/adr/0018-defer-in-platform-ai.md)). L'IA intervient d'abord **dans la façon de construire**
 > la plateforme : Claude Code, contexte économe, garde-fous et revues
 > ([ADR 0019](docs/adr/0019-ai-assisted-workflow.md), § 16). Les sections qui décrivent l'IA intégrée
 > restent valables pour ces phases optionnelles.
+>
+> **Révision du 2026-11-15 (ter)** : l'API de plateforme passe de kro à **Crossplane v2**, pour exposer
+> des **objets cloud GCP** en self-service ([ADR 0020](docs/adr/0020-crossplane-v2-platform-api.md)).
 
 ---
 
@@ -63,7 +66,7 @@ Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
                                     │ sync                         │ PR ouverte par le portail/agent
 ┌───────────── GKE Standard zonal (europe-west4) ─────────────────┼────────────────────────────┐
 │                                                                  │                            │
-│  Argo CD (app-of-apps) ──► Kyverno ──► kro (RGD) ──► ressources par équipe                    │
+│  Argo CD (app-of-apps) ──► Kyverno ──► Crossplane v2 ──► ressources GCP + K8s par équipe       │
 │                                                                                               │
 │  Portail (FastAPI + HTMX) ── catalogue, formulaires depuis schémas, chat assistant ───────────┘
 │        │                                                                                      │
@@ -85,7 +88,7 @@ Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
 | IaC socle GCP | Terraform (ou OpenTofu, compatible) | Standard du marché, certification de l'auteur |
 | Cluster | GKE **Standard zonal** | Le crédit gratuit GKE couvre les frais de gestion d'un cluster zonal ; contrôle des node pools (spot) |
 | GitOps | Argo CD, pattern app-of-apps | Maîtrisé par l'auteur, visuel en démo |
-| API développeur | **kro** (ResourceGraphDefinitions) ; Crossplane seulement si une ressource GCP doit être exposée en self-service (optionnel, phase 5) | kro est léger et natif K8s ; Crossplane reste pertinent pour le cloud |
+| API développeur | **Crossplane v2** + provider GCP (XRD + compositions) | Self-service d'objets cloud **et** Kubernetes dans une même composition ; mature, multi-cloud (ADR 0020) |
 | Politiques | Kyverno | Plus simple qu'OPA pour du 100 % Kubernetes ; utilisable en CI (CLI) |
 | Portail | **Maison** : FastAPI + HTMX (pas de SPA) | Backstage jugé trop lourd ; le portail n'est qu'un client de l'API (les CRD) — remplaçable |
 | Gateway LLM | LiteLLM proxy | API OpenAI-compatible, clés virtuelles, budgets, multi-backends |
@@ -121,6 +124,8 @@ State de cette couche : local ou bucket dédié créé manuellement — document
 - Compte de service Google `litellm-vertex` avec `roles/aiplatform.user` + binding Workload Identity
   vers le KSA `llm-gateway/litellm`.
 - Compte de service Google pour External Secrets (lecture Secret Manager) + binding WI.
+- Compte de service Google pour le provider Crossplane GCP + binding WI, avec **uniquement** les rôles
+  requis par les ressources exposées (buckets, comptes de service et leurs liaisons IAM) — jamais `owner`/`editor`.
 - Bootstrap Argo CD : installation du chart Argo CD via le provider Helm **uniquement**, puis
   création de l'Application racine (app-of-apps) pointant vers `gitops/`. Tout le reste est synchronisé par Argo CD.
 - **Pas** de load balancer, d'IP statique ni de disque persistant créés par Terraform (sources d'orphelins).
@@ -139,27 +144,35 @@ App-of-apps avec **sync waves** pour l'ordre :
 | 0 | namespaces, CRDs de base | |
 | 1 | Kyverno + politiques | Politiques en mode `Enforce` |
 | 1 | External Secrets Operator + `ClusterSecretStore` GCP | via Workload Identity |
-| 2 | kro + ResourceGraphDefinitions | |
+| 2 | Crossplane v2 + provider GCP (familles utiles seulement) + fonctions + XRD/compositions | `ProviderConfig` via Workload Identity |
 | 2 | OpenCost, kube-prometheus-stack (allégé) | rétention courte, pas de PVC (emptyDir) |
 | 3 | *(phase 7, optionnelle)* LiteLLM (+ Postgres pour clés/budgets) | Postgres **sans PVC** en démo (emptyDir), assumé et documenté |
 | 4 | Portail | image GHCR |
-| 5 | `claims/` | instances kro créées par les équipes (via PR) |
+| 5 | `claims/` | demandes (XR) créées par les équipes (via PR) |
 
 Règle : **aucun `PersistentVolumeClaim`** dans la démo (un PVC = un disque PD qui peut survivre au
 `destroy`). Une politique Kyverno l'interdit, sauf dérogation explicite.
 
 ---
 
-## 6. API de la plateforme (kro)
+## 6. API de la plateforme (Crossplane v2)
 
-À définir sous `platform/rgd/`. Deux RGD minimum :
+À définir sous `platform/apis/<capacité>/` : une définition (XRD) et une composition par capacité,
+plus une composition `local` sans ressources cloud pour le chemin kind (§ 9).
 
 ### `TeamSpace`
-Crée pour une équipe : Namespace, ResourceQuota, LimitRange, NetworkPolicy par défaut,
-RoleBinding, labels de coût (`team=<nom>`).
+Crée pour une équipe :
+- **Kubernetes** : Namespace, ResourceQuota, LimitRange, NetworkPolicy par défaut, RoleBinding,
+  ServiceAccount de l'équipe, labels de coût (`team=<nom>`) ;
+- **GCP** : un bucket GCS de l'équipe et un compte de service Google lié au ServiceAccount de
+  l'équipe par Workload Identity, avec accès au seul bucket de l'équipe.
 Champs : `team` (requis), `owner` (email), `cpuQuota`, `memoryQuota`.
+Statut exposé : nom du bucket, email du compte de service, état de chaque ressource.
 
-### `LLMAccess` *(phase 7, optionnelle)*
+Règles pour les ressources GCP exposées : **rapides à créer, quasi gratuites à l'arrêt, supprimées
+avec la demande** (pas de Cloud SQL, Memorystore, etc. dans la démo), labels `env` et `team`.
+
+### `LLMAccess` *(phase 7, optionnelle — à transposer en XRD Crossplane)*
 Donne à une équipe un accès au gateway :
 - `model` : enum restreint (alias LiteLLM pointant vers des modèles Claude sur Vertex AI)
 - `monthlyBudgetUsd` : entier, borné (ex. max 50)
@@ -171,6 +184,7 @@ Exemples de claims dans `claims/examples/`.
 
 ### Politiques Kyverno (`platform/policies/`)
 - Interdiction des PVC (démo).
+- Aucune ressource managée Crossplane configurée pour survivre à sa suppression (politique de suppression / de gestion).
 - Labels obligatoires `team`, `owner` sur les claims.
 - `monthlyBudgetUsd` ≤ plafond global.
 - Interdiction des Services `type: LoadBalancer` hors namespace autorisé.
@@ -184,13 +198,13 @@ Exemples de claims dans `claims/examples/`.
 Python 3.12+, FastAPI, Jinja2 + HTMX, aucun framework JS lourd.
 
 Pages :
-1. **Catalogue** : liste des RGD disponibles (lues depuis l'API Kubernetes) et des claims existants
-   par équipe, avec leur statut kro.
+1. **Catalogue** : liste des XRD disponibles (lues depuis l'API Kubernetes) et des demandes existantes
+   par équipe, avec leur statut Crossplane (ressources GCP comprises).
 2. **Nouvelle demande** : formulaire **généré depuis le schéma OpenAPI** de la CRD → produit le YAML du claim
    → ouvre une **PR GitHub** (token depuis Secret Manager via External Secrets).
 3. **Assistant** : chat qui appelle le gateway LiteLLM (backend Vertex). L'agent dispose d'outils
    (function calling) **en lecture seule + une écriture contrôlée** :
-   - `list_capabilities()` — RGD et leurs schémas
+   - `list_capabilities()` — XRD et leurs schémas
    - `get_team_status(team)` — claims, état, coûts OpenCost
    - `validate_claim(yaml)` — validation schéma + `kyverno apply` local
    - `open_pull_request(yaml, title, description)` — **seule action d'écriture**, après confirmation
@@ -230,13 +244,16 @@ make test        # pytest + lint YAML + kyverno CLI + terraform validate/fmt
 6. Afficher la durée totale.
 
 ### `make down` (scripts/down.sh) — l'ordre compte
-1. Supprimer les claims puis l'Application racine Argo CD **en cascade** et attendre la
-   suppression effective (éviter les finalizers bloquants : documenter le contournement).
+1. Supprimer les demandes (XR) et **attendre que Crossplane ait détruit les ressources GCP**
+   correspondantes (timeout explicite) — le contrôleur doit encore tourner pour nettoyer.
+   Puis supprimer l'Application racine Argo CD **en cascade** et attendre la suppression effective
+   (éviter les finalizers bloquants : documenter le contournement).
 2. Supprimer explicitement tout `Service type=LoadBalancer`, `Gateway`/`Ingress` et PVC restants,
    puis attendre que GCP ait libéré les ressources associées (forwarding rules, NEG, disques).
 3. `terraform -chdir=infra/platform destroy -auto-approve`.
 4. `make check-orphans` : lister via `gcloud` les ressources résiduelles facturables
-   (instances, disques, adresses, forwarding-rules, NEG, target-pools, backend-services, routeurs NAT)
+   (instances, disques, adresses, forwarding-rules, NEG, target-pools, backend-services, routeurs NAT,
+   buckets et comptes de service créés par Crossplane)
    filtrées sur le projet / label. **Code de sortie ≠ 0 s'il en reste.**
 5. Afficher la durée totale.
 
@@ -248,7 +265,8 @@ make test        # pytest + lint YAML + kyverno CLI + terraform validate/fmt
 - backend LLM = mode « mock » ou clé API fournie par l'utilisateur
   via variable d'environnement (jamais committée) ;
 - External Secrets remplacé par un Secret créé localement depuis `.env`.
-Objectif : démontrer kro, Kyverno, le portail et le flux PR sans compte cloud.
+- Crossplane avec la composition `local` de chaque capacité (mêmes XRD, aucune ressource cloud).
+Objectif : démontrer Crossplane, Kyverno, le portail et le flux PR sans compte cloud.
 
 ---
 
@@ -270,8 +288,9 @@ Objectif : démontrer kro, Kyverno, le portail et le flux PR sans compte cloud.
 | Budget GCP + alertes | `infra/bootstrap` |
 | Nœuds spot, cluster zonal, pas de NAT par défaut | `infra/platform` |
 | Aucun GPU (ni pool, ni pod) | `infra/platform` + Kyverno |
-| Budgets par clé LiteLLM + plafond global | config LiteLLM / RGD `LLMAccess` |
+| Budgets par clé LiteLLM + plafond global | config LiteLLM / XRD `LLMAccess` |
 | Interdiction PVC / LoadBalancer non autorisés | Kyverno |
+| Ressources GCP self-service rapides et quasi gratuites, supprimées avec la demande | compositions Crossplane + Kyverno |
 | `check-orphans` obligatoire en fin de `down` | scripts |
 
 Ordres de grandeur relevés en novembre 2026 (prix tiers, **à revérifier** dans le calculateur GCP) :
@@ -284,9 +303,10 @@ Ordres de grandeur relevés en novembre 2026 (prix tiers, **à revérifier** dan
 ## 12. Points à vérifier avant d'implémenter (ne pas deviner)
 
 - **Versions** à épingler (dernières stables) : providers Terraform google/helm/kubernetes, charts
-  Argo CD, Kyverno, kro, External Secrets, OpenCost, LiteLLM. Épingler partout, pas de `latest`.
-- **kro** : `apiVersion` exacte de `ResourceGraphDefinition`, syntaxe du simple schema
-  (marqueurs `required`, `default`, `enum`, `minimum`/`maximum`), `includeWhen` — doc kro.run.
+  Argo CD, Kyverno, Crossplane et provider GCP, fonctions de composition, External Secrets, OpenCost, LiteLLM. Épingler partout, pas de `latest`.
+- **Crossplane v2** : XR namespacés, `apiVersion` des XRD et des ressources managées du provider
+  GCP, fonctions de composition à retenir, politiques de suppression/gestion, authentification du
+  `ProviderConfig` par Workload Identity, ordre de suppression au `down` — doc crossplane.io.
 - **LiteLLM** : syntaxe `model_list` pour Claude sur Vertex (`vertex_ai/<model>`, `vertex_project`,
   `vertex_location`), endpoint `global`/`eu`, auth par ADC/Workload Identity, API admin des clés virtuelles et budgets.
 - **Vertex / Claude** : modèles disponibles pour le projet et **région** à utiliser. Les modèles récents
@@ -304,11 +324,11 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 |---|---|---|
 | 1 | Squelette dépôt, README, ADR, Makefile, `infra/bootstrap` | `terraform validate` OK ; README explique les prérequis |
 | 2 | `infra/platform` (VPC, GKE, pools, IAM, WI) + `up.sh`/`down.sh`/`check-orphans` | Cycle `up` → `down` → `check-orphans` sans orphelin, deux fois de suite |
-| 3 | Argo CD app-of-apps, Kyverno, ESO, kro, OpenCost | Tout `Synced/Healthy` après `make up` |
-| 4 | RGD `TeamSpace` + politiques + exemples de claims + CI Kyverno | Un claim d'exemple crée l'espace d'équipe ; un claim invalide est refusé en CI et dans le cluster |
+| 3 | Argo CD app-of-apps, Kyverno, ESO, Crossplane v2 + provider GCP, OpenCost | Tout `Synced/Healthy` après `make up` |
+| 4 | XRD + composition `TeamSpace` (objets K8s + bucket + compte de service WI) + politiques + exemples + CI Kyverno | Une demande d'exemple crée l'espace d'équipe et ses ressources GCP ; une demande invalide est refusée en CI et dans le cluster ; `make down` ne laisse aucun bucket ni compte de service |
 | 5 | Portail : catalogue, formulaires, ouverture de PR | Demande via UI → PR GitHub → merge → ressource créée |
 | 6 | Chemin local kind, polish README (schéma, GIF de démo), `docs/demo.md` | Un visiteur lance `make local-up` sans compte cloud |
-| 7 *(optionnelle)* | LiteLLM + Vertex (WI, sans clé) + RGD `LLMAccess` | Une équipe obtient une clé et appelle Claude via le gateway ; budget appliqué |
+| 7 *(optionnelle)* | LiteLLM + Vertex (WI, sans clé) + XRD `LLMAccess` | Une équipe obtient une clé et appelle Claude via le gateway ; budget appliqué |
 | 8 *(optionnelle)* | Assistant IA dans le portail (outils, confirmation avant PR) | Scénario de démo bout en bout scripté dans `docs/demo.md` |
 | transverse | Workflow Claude Code : CLAUDE.md, skills, garde-fous, revues IA (§ 16) | En place dès la phase 1, revu à chaque phase |
 
@@ -335,7 +355,7 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 │   ├── apps/                # une Application par composant
 │   └── overlays/{gcp,local}/
 ├── platform/
-│   ├── rgd/
+│   ├── apis/                # une XRD + compositions (gcp, local) par capacité
 │   └── policies/
 ├── claims/
 │   └── examples/
