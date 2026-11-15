@@ -19,7 +19,8 @@ Ne lire de `PLAN.md` que la section utile à la tâche (phases : § 13 ; workflo
 ## Commandes
 - `make test` : contrôles statiques, à lancer après chaque modification.
 - `make whoami` : compte et projet GCP effectifs.
-- Skills : `new-adr` (toute nouvelle décision), `close-phase` (fin de phase).
+- Skills : `new-adr` (toute nouvelle décision), `close-phase` (fin de phase), `write-episode`
+  (article de blog + post LinkedIn d'une phase close ; site dans `~/perso/Shinr0.github.io`).
 - Avant de proposer un push : `make test` vert, puis suggérer `/code-review`.
 
 ## Repères
