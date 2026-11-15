@@ -136,7 +136,7 @@ garde-fous versionnés (PLAN.md § 16, [ADR 0014](docs/adr/0014-ai-assisted-work
 
 Activer la revue IA en CI (une fois) : dans la console Claude, *Settings › Workload identity*,
 enregistrer l'émetteur `https://token.actions.githubusercontent.com`, créer un compte de service et
-une règle de fédération limitée à `repo:<owner>/platform-project:`, fixer une limite de dépense sur
+une règle de fédération limitée à `repo:<owner>/bivouac:`, fixer une limite de dépense sur
 le workspace, puis créer les variables de dépôt `ANTHROPIC_FEDERATION_RULE_ID`,
 `ANTHROPIC_ORGANIZATION_ID` et `ANTHROPIC_SERVICE_ACCOUNT_ID`. Sans elles, le job est ignoré.
 
