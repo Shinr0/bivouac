@@ -45,3 +45,11 @@ survivre à `make down`.
 - Le format ne publiant pas de schéma de validation sur sa page de référence, la CI valide le
   catalogue avec un schéma propre au dépôt (champs obligatoires, références résolues, annotations
   `bivouac/` attendues).
+- **En production**, le modèle cible est hybride : la propriété (équipe, socle, dépendances) est
+  déclarée dans Git, **dans le dépôt de chaque application** et non dans un dossier central ; les
+  personnes (membres, managers, rattachements) viennent de l'annuaire ou du SIRH, jamais de Git ;
+  l'astreinte vient de l'outil d'astreinte ; une **base de données** agrège le tout comme index
+  (recherche, requêtes, portail, droits), alimentée par ces sources et reconstructible à partir
+  d'elles — jamais éditée à la main, sous peine de dériver comme une CMDB. C'est le fonctionnement
+  de Backstage (fichiers dans les dépôts, ingérés dans PostgreSQL). Le dossier central `catalog/` et
+  l'absence de base sont des simplifications de labo.
