@@ -1,13 +1,14 @@
-# Plateforme IA éphémère sur GCP
+# Plateforme éphémère sur GCP, construite avec Claude Code
 
-Une **plateforme interne de développement (IDP) en self-service, avec de l'IA par-dessus**, qui
-n'existe que le temps d'une démo : `make up` la construit depuis un projet GCP vide, `make down`
-la détruit sans laisser de ressource facturée.
+Une **plateforme interne de développement (IDP) en self-service** qui n'existe que le temps d'une
+démo : `make up` la construit depuis un projet GCP vide, `make down` la détruit sans laisser de
+ressource facturée.
 
-- **LLM-as-a-Service** : une équipe demande un accès LLM par un simple claim Git ; la plateforme
-  provisionne la clé, applique quotas et budgets, mesure les coûts.
-- **Assistant de plateforme** : un agent en langage naturel aide à formuler une demande et
-  **ouvre une pull request** — il ne touche jamais le cluster directement.
+- **Construite avec un agent IA, sous contrôle** : Claude Code itère sur le dépôt, encadré par
+  des règles (`CLAUDE.md`), des garde-fous (permissions, hooks), une carte du dépôt (Graphify)
+  et des revues IA à coût borné — voir PLAN.md § 16 et [ADR 0019](docs/adr/0019-ai-assisted-workflow.md).
+- **IA dans la plateforme (phases optionnelles)** : accès LLM par équipe via LiteLLM + Vertex AI,
+  assistant qui ouvre des pull requests — reporté ([ADR 0018](docs/adr/0018-defer-in-platform-ai.md)).
 
 > Projet en construction, phase par phase. Spécification complète : [`PLAN.md`](PLAN.md).
 
@@ -16,8 +17,8 @@ la détruit sans laisser de ressource facturée.
 ```
 GitHub (gitops/, claims/) ──sync──► Argo CD ──► Kyverno ──► kro ──► ressources par équipe
                                         │
-GKE Standard zonal (spot)               ├─ Portail FastAPI + HTMX (catalogue, demandes, assistant)
-                                        ├─ LiteLLM ──► Vertex AI (Claude)
+GKE Standard zonal (spot)               ├─ Portail FastAPI + HTMX (catalogue, demandes)
+                                        ├─ (optionnel) LiteLLM ──► Vertex AI (Claude)
                                         └─ OpenCost, Prometheus/Grafana
 ```
 
@@ -31,8 +32,9 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | API développeur | kro (ResourceGraphDefinitions) |
 | Politiques | Kyverno (CI + admission) |
 | Portail | FastAPI + HTMX |
-| Gateway LLM | LiteLLM → Vertex AI (Claude), seul backend — pas de modèle auto-hébergé |
-| FinOps | Budget GCP, OpenCost, budgets LiteLLM |
+| Gateway LLM *(optionnel)* | LiteLLM → Vertex AI (Claude), pas de modèle auto-hébergé |
+| Outillage IA | Claude Code, Graphify, revue `claude-code-action` (OIDC, sans clé) |
+| FinOps | Budget GCP, OpenCost (+ budgets LiteLLM si phase 7) |
 
 ## Avancement
 
@@ -42,10 +44,11 @@ Détails : [`docs/architecture.md`](docs/architecture.md) · Décisions : [`docs
 | 2 | `infra/platform` (VPC, GKE, IAM, WI) + `up` / `down` / `check-orphans` | ⏳ |
 | 3 | Argo CD app-of-apps, Kyverno, ESO, kro, OpenCost | — |
 | 4 | RGD `TeamSpace`, politiques, CI Kyverno | — |
-| 5 | LiteLLM + Vertex, RGD `LLMAccess` | — |
-| 6 | Portail : catalogue, formulaires, PR | — |
-| 7 | Assistant IA | — |
-| 8 | Chemin local kind, polish | — |
+| 5 | Portail : catalogue, formulaires, PR | — |
+| 6 | Chemin local kind, polish | — |
+| 7 *(opt.)* | LiteLLM + Vertex, RGD `LLMAccess` | reporté |
+| 8 *(opt.)* | Assistant IA dans le portail | reporté |
+| transverse | Workflow Claude Code : Graphify, garde-fous, revues IA | ✅ |
 
 ## Prérequis
 
@@ -74,8 +77,8 @@ Ce sont les **seules** opérations hors code (PLAN.md § 10).
    Tous les scripts refusent de s'exécuter si le compte actif n'est pas `GCP_ACCOUNT`.
    Le compte doit pouvoir activer des APIs sur le projet et créer un budget sur le compte de
    facturation (`roles/billing.costsManager` ou administrateur de facturation).
-2. **Activer les modèles Claude dans Vertex AI Model Garden** et accepter les conditions
-   (console GCP › Vertex AI › Model Garden). Non automatisable proprement, par projet.
+2. *(Phases optionnelles 7–8 uniquement)* **Activer les modèles Claude dans Vertex AI Model
+   Garden** et accepter les conditions (console GCP › Vertex AI › Model Garden).
 3. **Configuration locale** :
    ```bash
    cp .env.example .env   # GCP_ACCOUNT, GCP_PROJECT_ID, GCP_BILLING_ACCOUNT_ID
@@ -107,6 +110,26 @@ make up          # plateforme éphémère          (phase 2)
 make down        # destruction + check-orphans  (phase 2)
 ```
 
+## Travailler sur le dépôt avec Claude Code
+
+Le dépôt est fait pour être modifié avec [Claude Code](https://claude.com/claude-code), sous
+garde-fous versionnés (PLAN.md § 16, [ADR 0019](docs/adr/0019-ai-assisted-workflow.md)) :
+
+| Élément | Rôle |
+|---|---|
+| `CLAUDE.md`, `PLAN.md` | Règles et phases : l'agent ne travaille que sur la phase en cours |
+| `.claude/settings.json` | Confirmation exigée pour `terraform apply/destroy`, `make up/down/bootstrap`, `git push` |
+| `.claude/hooks/guard-gcloud.sh` | Bloque tout `gcloud` hors de la config isolée du projet (testé par `make test`) |
+| Graphify (`make graph-install`, `make graph`) | Carte du dépôt (AST local, 0 token) consultée avant de relire les fichiers |
+| `/code-review` | Revue locale avant push, sans coût de CI |
+| `.github/workflows/claude-review.yml` | Revue IA des PR, bornée en coût, authentifiée par OIDC (aucune clé) |
+
+Activer la revue IA en CI (une fois) : dans la console Claude, *Settings › Workload identity*,
+enregistrer l'émetteur `https://token.actions.githubusercontent.com`, créer un compte de service et
+une règle de fédération limitée à `repo:<owner>/platform-project:`, fixer une limite de dépense sur
+le workspace, puis créer les variables de dépôt `ANTHROPIC_FEDERATION_RULE_ID`,
+`ANTHROPIC_ORGANIZATION_ID` et `ANTHROPIC_SERVICE_ACCOUNT_ID`. Sans elles, le job est ignoré.
+
 ## Coûts
 
 | Élément | Ordre de grandeur |
@@ -114,11 +137,11 @@ make down        # destruction + check-orphans  (phase 2)
 | Socle (bucket, secret, budget) | ≈ 0 € / mois |
 | Nœud e2-standard-4 spot (europe-west4) | ≈ 0,056 $/h |
 | Frais de gestion GKE (cluster zonal) | 0,10 $/h, couverts par le crédit gratuit GKE |
-| Vertex AI (Claude) | au token, plafonné par les budgets LiteLLM |
+| Vertex AI (Claude), phases optionnelles | au token, plafonné par les budgets LiteLLM |
 | Démo de 2 h (infra) | < 1 $ |
 
 Prix relevés en novembre 2026, à revérifier dans le calculateur GCP. Garde-fous : budget GCP,
-nœuds spot, aucun GPU, budgets LiteLLM, interdiction des PVC/LoadBalancer, contrôle d'orphelins
+nœuds spot, aucun GPU, interdiction des PVC/LoadBalancer, contrôle d'orphelins
 après chaque `down` ([ADR 0015](docs/adr/0015-finops-guardrails.md)).
 
 ## Structure du dépôt
@@ -130,6 +153,7 @@ après chaque `down` ([ADR 0015](docs/adr/0015-finops-guardrails.md)).
 ├── docs/                 architecture, ADR
 ├── infra/bootstrap/      socle persistant (Terraform, state local)
 ├── scripts/              scripts appelés par le Makefile
+├── .claude/              garde-fous et skill Graphify pour Claude Code
 └── .github/workflows/    CI
 ```
 

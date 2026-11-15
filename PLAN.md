@@ -7,6 +7,13 @@
 >
 > **Révision du 2026-11-15** : pas de GPU ni de modèle auto-hébergé ; les LLM passent uniquement
 > par Vertex AI ([ADR 0017](docs/adr/0017-vertex-only-no-gpu.md)). L'ancien volet KServe/vLLM est retiré.
+>
+> **Révision du 2026-11-15 (bis)** : l'IA **intégrée à la plateforme** (LiteLLM, Vertex AI, RGD `LLMAccess`,
+> assistant du portail) est **reportée** en phases optionnelles 7 et 8
+> ([ADR 0018](docs/adr/0018-defer-in-platform-ai.md)). L'IA intervient d'abord **dans la façon de construire**
+> la plateforme : Claude Code, cartographie Graphify, garde-fous et revues
+> ([ADR 0019](docs/adr/0019-ai-assisted-workflow.md), § 16). Les sections qui décrivent l'IA intégrée
+> restent valables pour ces phases optionnelles.
 
 ---
 
@@ -16,7 +23,7 @@ Vitrine technique d'un consultant freelance Cloud DevOps (GCP, Kubernetes, Terra
 Platform Engineering) : une **plateforme interne de développement (IDP) en self-service, avec de
 l'IA par-dessus**, publiée en dépôt GitHub public et démontrable en live devant un prospect.
 
-Deux volets IA :
+Deux volets IA, **reportés en phases optionnelles 7–8** (ADR 0018) :
 1. **LLM-as-a-Service** : une équipe demande un accès LLM (Claude sur Vertex AI) par un
    simple claim Git ; la plateforme provisionne, applique quotas et budgets, mesure les coûts.
 2. **Assistant de plateforme** : un agent en langage naturel, intégré au portail, qui aide à
@@ -134,7 +141,7 @@ App-of-apps avec **sync waves** pour l'ordre :
 | 1 | External Secrets Operator + `ClusterSecretStore` GCP | via Workload Identity |
 | 2 | kro + ResourceGraphDefinitions | |
 | 2 | OpenCost, kube-prometheus-stack (allégé) | rétention courte, pas de PVC (emptyDir) |
-| 3 | LiteLLM (+ Postgres pour clés/budgets) | Postgres **sans PVC** en démo (emptyDir), assumé et documenté |
+| 3 | *(phase 7, optionnelle)* LiteLLM (+ Postgres pour clés/budgets) | Postgres **sans PVC** en démo (emptyDir), assumé et documenté |
 | 4 | Portail | image GHCR |
 | 5 | `claims/` | instances kro créées par les équipes (via PR) |
 
@@ -152,7 +159,7 @@ Crée pour une équipe : Namespace, ResourceQuota, LimitRange, NetworkPolicy par
 RoleBinding, labels de coût (`team=<nom>`).
 Champs : `team` (requis), `owner` (email), `cpuQuota`, `memoryQuota`.
 
-### `LLMAccess`
+### `LLMAccess` *(phase 7, optionnelle)*
 Donne à une équipe un accès au gateway :
 - `model` : enum restreint (alias LiteLLM pointant vers des modèles Claude sur Vertex AI)
 - `monthlyBudgetUsd` : entier, borné (ex. max 50)
@@ -172,7 +179,7 @@ Exemples de claims dans `claims/examples/`.
 
 ---
 
-## 7. Portail et assistant IA (`portal/`)
+## 7. Portail et assistant IA (`portal/`) — assistant et coûts LLM en phase 8, optionnelle
 
 Python 3.12+, FastAPI, Jinja2 + HTMX, aucun framework JS lourd.
 
@@ -219,7 +226,7 @@ make test        # pytest + lint YAML + kyverno CLI + terraform validate/fmt
 3. Récupérer les credentials du cluster.
 4. Attendre que l'Application racine Argo CD et toutes ses enfants soient `Synced/Healthy`
    (timeout explicite, message clair en cas d'échec).
-5. Smoke tests : le portail répond, le gateway répond, un appel Vertex de test aboutit.
+5. Smoke tests : le portail répond ; si les phases IA sont activées, le gateway répond et un appel Vertex de test aboutit.
 6. Afficher la durée totale.
 
 ### `make down` (scripts/down.sh) — l'ordre compte
@@ -248,8 +255,8 @@ Objectif : démontrer kro, Kyverno, le portail et le flux PR sans compte cloud.
 ## 10. Prérequis manuels (une seule fois, à documenter dans le README)
 
 1. Projet GCP avec facturation (compte de la société).
-2. **Activer les modèles Claude dans Vertex AI Model Garden** et accepter les conditions
-   (par projet, non automatisable proprement).
+2. *(Phases 7–8 uniquement)* **Activer les modèles Claude dans Vertex AI Model Garden** et accepter
+   les conditions (par projet, non automatisable proprement).
 3. Créer un token GitHub à portée minimale (fine-grained, accès au seul dépôt, PR + contents)
    et le stocker dans le secret `github-token` de Secret Manager.
 4. `make bootstrap`.
@@ -299,10 +306,11 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 | 2 | `infra/platform` (VPC, GKE, pools, IAM, WI) + `up.sh`/`down.sh`/`check-orphans` | Cycle `up` → `down` → `check-orphans` sans orphelin, deux fois de suite |
 | 3 | Argo CD app-of-apps, Kyverno, ESO, kro, OpenCost | Tout `Synced/Healthy` après `make up` |
 | 4 | RGD `TeamSpace` + politiques + exemples de claims + CI Kyverno | Un claim d'exemple crée l'espace d'équipe ; un claim invalide est refusé en CI et dans le cluster |
-| 5 | LiteLLM + Vertex (WI, sans clé) + RGD `LLMAccess` | Une équipe obtient une clé et appelle Claude via le gateway ; budget appliqué |
-| 6 | Portail : catalogue, formulaires, ouverture de PR | Demande via UI → PR GitHub → merge → ressource créée |
-| 7 | Assistant IA (outils, confirmation avant PR) | Scénario de démo bout en bout scripté dans `docs/demo.md` |
-| 8 | Chemin local kind, polish README (schéma, GIF de démo), article de blog | Un visiteur lance `make local-up` sans compte cloud |
+| 5 | Portail : catalogue, formulaires, ouverture de PR | Demande via UI → PR GitHub → merge → ressource créée |
+| 6 | Chemin local kind, polish README (schéma, GIF de démo), `docs/demo.md` | Un visiteur lance `make local-up` sans compte cloud |
+| 7 *(optionnelle)* | LiteLLM + Vertex (WI, sans clé) + RGD `LLMAccess` | Une équipe obtient une clé et appelle Claude via le gateway ; budget appliqué |
+| 8 *(optionnelle)* | Assistant IA dans le portail (outils, confirmation avant PR) | Scénario de démo bout en bout scripté dans `docs/demo.md` |
+| transverse | Workflow Claude Code : CLAUDE.md, Graphify, garde-fous, revues IA (§ 16) | En place dès la phase 1, revu à chaque phase |
 
 ---
 
@@ -355,3 +363,20 @@ Chaque phase se termine par un commit propre, des tests verts et une mise à jou
 - Après chaque phase : `make test` vert, README à jour, commit.
 - Langue : code et identifiants en anglais, documentation en français.
 ```
+
+---
+
+## 16. Construire la plateforme avec Claude Code (transverse)
+
+La plateforme est développée avec Claude Code. Le dépôt encadre l'agent pour qu'il reste dans
+le plan et que le coût en tokens reste maîtrisé ([ADR 0019](docs/adr/0019-ai-assisted-workflow.md)).
+
+| Risque | Garde-fou | Où |
+|---|---|---|
+| Dérive de périmètre (anticiper une phase, inventer une version) | Règles `CLAUDE.md`, phases de PLAN.md, ADR par décision | `CLAUDE.md`, `PLAN.md`, `docs/adr/` |
+| Action destructrice ou facturée sans accord | Confirmation obligatoire : `terraform apply/destroy`, `make up/down/bootstrap`, `git push` | `.claude/settings.json` (`permissions.ask`) |
+| Mauvais compte GCP (compte client) | Hook qui bloque `gcloud` hors config isolée + vérification d'identité des scripts | `.claude/hooks/guard-gcloud.sh`, `scripts/lib.sh` |
+| Exploration coûteuse du dépôt | Graphe Graphify (AST local, 0 token) interrogé avant grep/lecture | `.claude/skills/graphify/`, `make graph` |
+| Régression non vue | `make test` + CI ; revue Claude **locale** (`/code-review`) avant push | `Makefile`, `.github/workflows/ci.yml` |
+| Revue IA trop chère | Revue CI déclenchée à l'ouverture / au label `ai-review`, diff seul, tours plafonnés, Sonnet, auth OIDC sans clé | `.github/workflows/claude-review.yml` |
+| Supply chain des outils | Versions épinglées (SHA d'actions, version PyPI) et délai de 7 jours avant adoption | workflows, `make graph-install` |

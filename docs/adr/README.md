@@ -13,11 +13,13 @@
 | [0009](0009-kro-developer-api.md) | kro comme API développeur | Accepté (implémentation en phases 4–5) |
 | [0010](0010-kyverno-policies.md) | Kyverno pour les politiques, en CI et dans le cluster | Accepté (implémentation en phase 4) |
 | [0011](0011-portal-fastapi-htmx.md) | Portail maison FastAPI + HTMX | Accepté (implémentation en phases 6–7) |
-| [0012](0012-litellm-gateway.md) | LiteLLM comme gateway LLM | Accepté (implémentation en phase 5) |
-| [0013](0013-vertex-ai-claude.md) | Vertex AI (Claude via Model Garden) comme backend LLM | Accepté (implémentation en phase 5) |
+| [0012](0012-litellm-gateway.md) | LiteLLM comme gateway LLM | Accepté — reporté en phase optionnelle 7 (ADR 0018) |
+| [0013](0013-vertex-ai-claude.md) | Vertex AI (Claude via Model Garden) comme backend LLM | Accepté — reporté en phase optionnelle 7 (ADR 0018) |
 | [0014](0014-kserve-vllm.md) | KServe + vLLM pour les modèles auto-hébergés | Remplacé par [0017](0017-vertex-only-no-gpu.md) (2026-11-15) |
 | [0015](0015-finops-guardrails.md) | Garde-fous FinOps : budget GCP, OpenCost, budgets LiteLLM | Accepté (budget GCP en phase 1, le reste en phases 3–5) |
 | [0016](0016-ghcr-images.md) | Images sur GHCR, construites par GitHub Actions | Accepté (implémentation en phase 6) |
 | [0017](0017-vertex-only-no-gpu.md) | Vertex AI uniquement : ni GPU ni modèle auto-hébergé | Accepté — remplace [0014](0014-kserve-vllm.md) |
+| [0018](0018-defer-in-platform-ai.md) | Reporter l'IA intégrée à la plateforme | Accepté |
+| [0019](0019-ai-assisted-workflow.md) | Développer la plateforme avec Claude Code, sous garde-fous | Accepté |
 
 Nouvelle décision : copier [`0000-template.md`](0000-template.md).

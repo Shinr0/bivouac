@@ -1,6 +1,6 @@
 # 0012. LiteLLM comme gateway LLM
 
-- **Statut** : Accepté (implémentation en phase 5)
+- **Statut** : Accepté — reporté en phase optionnelle 7 (ADR 0018)
 - **Date** : 2026-11-10
 
 ## Contexte
